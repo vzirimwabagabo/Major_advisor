@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My History - USIU AI Advisor</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h1 { color: #8B0000; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f8f8f8; color: #333; }
+        tr:hover { background-color: #f1f1f1; }
+        .btn-back { display: inline-block; margin-top: 20px; background-color: #8B0000; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; }
+        .badge { padding: 5px 10px; border-radius: 4px; font-size: 0.8em; color: white; }
+        .badge-soft { background-color: #4caf50; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Recommendation History</h1>
+    <p>Below is a record of your previous AI recommendations.</p>
+
+    {% if results %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Recommended Major</th>
+                    <th>School</th>
+                    <th>Confidence</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for res in results %}
+                <tr>
+                    <td>{{ res.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td><strong>{{ res.major }}</strong></td>
+                    <td>{{ res.school }}</td>
+                    <td><span class="badge badge-soft">{{ res.confidence }}%</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No history found. <a href="{{ url_for('index') }}">Make your first recommendation</a>.</p>
+    {% endif %}
+
+    <a href="{{ url_for('index') }}" class="btn-back">← Back to Advisor</a>
+</div>
+
+</body>
+</html>

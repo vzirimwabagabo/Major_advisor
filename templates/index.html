@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USIU-Africa AI Major Advisor</title>
+    <style>
+        /* --- Base Styles --- */
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; display: flex; justify-content: center; min-height: 100vh; }
+        
+        /* --- Container --- */
+        .container { background: white; width: 100%; max-width: 900px; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin: 20px; }
+        
+        /* --- Header Styles --- */
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 25px; }
+        .header h1 { color: #8B0000; margin: 0; font-size: 1.6em; }
+        .header-info { text-align: right; }
+        .header-info span { display: block; font-size: 0.9em; color: #666; }
+        .header-info a { color: #8B0000; font-weight: bold; text-decoration: none; font-size: 0.9em; margin-left: 10px; }
+        .header-info a:hover { text-decoration: underline; }
+
+        /* --- Alert / Flash Messages --- */
+        .alert { padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 0.9em; }
+        .danger { background-color: #ffebee; color: #c62828; border-left: 5px solid #f44336; }
+        .success { background-color: #e8f5e9; color: #2e7d32; border-left: 5px solid #4caf50; }
+
+        /* --- Form Styles --- */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .full-width { grid-column: 1 / -1; }
+        
+        .section-header { 
+            grid-column: 1 / -1; 
+            background-color: #f0f0f0; 
+            padding: 10px; 
+            border-left: 4px solid #8B0000; 
+            font-weight: bold; 
+            margin-top: 15px;
+            color: #333;
+            font-size: 0.95em;
+        }
+        
+        label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.85em; color: #444; }
+        select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
+        
+        button { width: 100%; background-color: #8B0000; color: white; padding: 15px; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 25px; font-weight: bold; }
+        button:hover { background-color: #a30000; }
+
+        /* --- Result Styles --- */
+        .result-container { margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px; }
+        
+        .input-summary { background-color: #f9f9f9; padding: 15px; border-radius: 5px; border: 1px solid #ddd; margin-bottom: 20px; }
+        .input-summary h3 { margin-top: 0; color: #555; font-size: 1em; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+        .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 0.85em; }
+        .summary-item { background: white; padding: 5px; border: 1px solid #eee; text-align: center; }
+        .summary-item strong { display: block; color: #8B0000; }
+
+        /* Explanation Boxes */
+        .explanation-box { background-color: #fff3cd; border-left: 5px solid #ffc107; padding: 15px; margin-bottom: 20px; color: #666; font-style: italic; }
+        
+        /* Guidance Box (Blue - for 'Second Choice' recommendations) */
+        .guidance-box { 
+            background-color: #e3f2fd; /* Soft Blue */
+            border-left: 5px solid #2196f3; 
+            padding: 20px; 
+            margin-bottom: 20px; 
+            color: #0d47a1; 
+            line-height: 1.6; 
+            font-size: 0.95em;
+        }
+        .guidance-box strong { color: #0d47a1; }
+
+        /* Final Result Box (Green) */
+        .result-box { padding: 25px; background-color: #e8f5e9; border-left: 5px solid #4caf50; border-radius: 4px; text-align: center; }
+        .result-major { font-size: 1.8em; font-weight: bold; color: #2e7d32; margin: 0; }
+        .result-school { color: #555; font-size: 1.1em; margin-top: 5px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <!-- Header Section -->
+    <div class="header">
+        <div>
+            <h1>AI Major Advisor</h1>
+            <div style="font-size:0.85em; color:#666;">United States International University - Africa</div>
+        </div>
+        <div class="header-info">
+            <span>Logged in as: <strong>{{ current_user.username }}</strong></span>
+            <div style="margin-top:5px;">
+                <a href="{{ url_for('history') }}" style="text-decoration:none; color:#333; margin-right:15px;">My History</a>
+                
+                {% if current_user.is_admin %}
+                    <a href="{{ url_for('admin') }}" style="text-decoration:none; color:#8B0000; margin-right:15px; font-weight:bold;">Admin Panel</a>
+                {% endif %}
+                
+                <a href="{{ url_for('logout') }}" style="color:#8B0000; font-weight:bold;">Logout</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <!-- Main Form -->
+    <form action="/predict" method="POST">
+        
+        <!-- GROUP I: COMPULSORY -->
+        <div class="section-header">Group I: Compulsory Subjects</div>
+        
+        <div>
+            <label>Mathematics (121/122)</label>
+            <select name="math" required>
+                <option value="" disabled selected>Select Grade</option>
+                <option value="A">A</option><option value="A-">A-</option>
+                <option value="B+">B+</option><option value="B">B</option>
+                <option value="B-">B-</option><option value="C+">C+</option>
+                <option value="C">C</option><option value="C-">C-</option>
+                <option value="D+">D+</option><option value="D">D</option>
+            </select>
+        </div>
+
+        <div>
+            <label>English (101)</label>
+            <select name="english" required>
+                <option value="" disabled selected>Select Grade</option>
+                <option value="A">A</option><option value="A-">A-</option>
+                <option value="B+">B+</option><option value="B">B</option>
+                <option value="B-">B-</option><option value="C+">C+</option>
+                <option value="C">C</option>
+            </select>
+        </div>
+
+        <div>
+            <label>Kiswahili (102)</label>
+            <select name="kiswahili" required>
+                <option value="" disabled selected>Select Grade</option>
+                <option value="A">A</option><option value="A-">A-</option>
+                <option value="B+">B+</option><option value="B">B</option>
+                <option value="B-">B-</option><option value="C+">C+</option>
+                <option value="C">C</option>
+            </select>
+        </div>
+
+        <!-- GROUP II: SCIENCES -->
+        <div class="section-header">Group II: Sciences (Select at least two)</div>
+
+        <div>
+            <label>Biology (231)</label>
+            <select name="biology">
+                <option value="NOT TAKEN" selected>Not Taken</option>
+                <option value="A">A</option><option value="A-">A-</option>
+                <option value="B+">B+</option><option value="B">B</option>
+                <option value="B-">B-</option><option value="C+">C+</option>
+            </select>
+        </div>
+
+        <div>
+            <label>Physics (232)</label>
+            <select name="physics">
+                <option value="NOT TAKEN" selected>Not Taken</option>
+                <option value="A">A</option><option value="A-">A-</option>
+                <option value="B+">B+</option><option value="B">B</option>
+                <option value="B-">B-</option><option value="C+">C+</option>
+            </select>
+        </div>
+
+        <div>
+            <label>Chemistry (233)</label>
+            <select name="chemistry">
+                <option value="NOT TAKEN" selected>Not Taken</option>
+                <option value="A">A</option><option value="A-">A-</option>
+                <option value="B+">B+</option><option value="B">B</option>
+                <option value="B-">B-</option><option value="C+">C+</option>
+            </select>
+        </div>
+
+        <!-- GROUP III: HUMANITIES -->
+        <div class="section-header">Group III: Humanities (Select one)</div>
+
+        <div>
+            <label>Best Humanity (History/Geo/RE)</label>
+            <select name="humanities" required>
+                <option value="" disabled selected>Select Grade</option>
+                <option value="A">A</option><option value="A-">A-</option>
+                <option value="B+">B+</option><option value="B">B</option>
+                <option value="B-">B-</option><option value="C+">C+</option>
+                <option value="C">C</option>
+            </select>
+        </div>
+
+        <!-- GROUP IV/V: APPLIED / BUSINESS -->
+        <div class="section-header">Group IV/V: Technical & Business</div>
+
+        <div>
+            <label>Best Technical/Business Subject</label>
+            <select name="tech_bus">
+                <option value="NOT TAKEN" selected>Not Taken</option>
+                <option value="A">A</option><option value="A-">A-</option>
+                <option value="B+">B+</option><option value="B">B</option>
+                <option value="B-">B-</option><option value="C+">C+</option>
+                <option value="C">C</option>
+            </select>
+        </div>
+
+        <!-- INTEREST -->
+        <div class="section-header">Student Interest</div>
+        <div class="full-width">
+            <label>Preferred Career Pathway</label>
+            <select name="interest" required>
+                <option value="" disabled selected>Select Interest</option>
+                <option value="Undecided">I am Undecided / Not Sure</option>
+                <option value="Technology & Engineering">Technology & Engineering</option>
+                <option value="Health Sciences">Health Sciences</option>
+                <option value="Business & Commerce">Business & Commerce</option>
+                <option value="Humanities & Social Sciences">Humanities & Social Sciences</option>
+                <option value="Creative Arts & Media">Creative Arts & Media</option>
+            </select>
+        </div>
+
+        <button type="submit">Analyze Subjects</button>
+    </form>
+
+    <!-- Results Section -->
+    {% if show_results %}
+    <div class="result-container">
+        
+        <div class="input-summary">
+            <h3>Step 1: Your Academic Profile (Input)</h3>
+            <div class="summary-grid">
+                {% for subject, grade in input_summary.items() %}
+                <div class="summary-item">
+                    <strong>{{ subject }}</strong>
+                    {{ grade }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Change box color based on 'is_alternative' flag -->
+        {% if is_alternative %}
+            <div class="guidance-box">
+                <strong>💡 Personalized Guidance</strong><br>
+                {{ explanation|safe }}
+            </div>
+        {% else %}
+            <div class="explanation-box">
+                <strong>Decision Logic</strong><br>
+                {{ explanation|safe }}
+            </div>
+        {% endif %}
+
+        <!-- Final Recommendation Box -->
+        <div class="result-box">
+            <h3>Recommended Major</h3>
+            <p class="result-major">{{ result }}</p>
+            <p class="result-school">{{ school }}</p>
+            <p style="font-size:0.9em; color:#666; margin-top:10px;">Model Confidence: {{ confidence }}%</p>
+        </div>
+
+    </div>
+    {% endif %}
+</div>
+
+</body>
+</html>
