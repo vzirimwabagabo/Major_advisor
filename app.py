@@ -1,10 +1,17 @@
-from flask import Flask, render_template, url_for, redirect, request, flash
+from flask import Flask, render_template, url_for, redirect, request, flash, send_file
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_bcrypt import Bcrypt
-import joblib
-import numpy as np
+from recommendations import (
+    get_major_by_rules, determine_best_fit, check_eligibility,
+    MAJOR_TO_SCHOOL, INTEREST_MAP, VALID_GRADES, generate_report
+)
+from model_training import save_recommendation_data, get_recommendation_statistics
 from datetime import datetime
+from sqlalchemy import func, desc
+import os
+import csv
+from io import StringIO
 
 # --- App Configuration ---
 app = Flask(__name__)
@@ -18,10 +25,6 @@ bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 login_manager.login_message = "Please log in to access the AI Advisor."
-
-# --- AI Model Loading ---
-model = joblib.load('major_recommendation_model.pkl')
-label_encoder = joblib.load('label_encoder.pkl')
 
 # --- Database Models ---
 class User(db.Model, UserMixin):
@@ -50,71 +53,6 @@ class Result(db.Model):
 def load_user(user_id):
     return db.session.get(User, int(user_id))
 
-# --- Mappings ---
-grade_mapping = {
-    'A': 12, 'A-': 11, 'B+': 10, 'B': 9, 'B-': 8,
-    'C+': 7, 'C': 6, 'C-': 5, 'D+': 4, 'D': 3, 'D-': 2, 'E': 1,
-    'NOT TAKEN': 0
-}
-
-interest_mapping = {
-    'Technology & Engineering': 0,
-    'Health Sciences': 1,
-    'Business & Commerce': 2,
-    'Humanities & Social Sciences': 3,
-    'Creative Arts & Media': 4
-}
-
-school_map = {
-    'Global Leadership and Governance': 'Chandaria School of Business',
-    'Accounting': 'Chandaria School of Business', 'Finance': 'Chandaria School of Business',
-    'Hotel and Restaurant Management': 'Chandaria School of Business',
-    'International Business Administration': 'Chandaria School of Business',
-    'International Relations': 'School of Humanities and Social Sciences',
-    'Criminal Justice Studies': 'School of Humanities and Social Sciences',
-    'Psychology': 'School of Humanities and Social Sciences',
-    'Applied Computer Technology': 'School of Science and Technology',
-    'Information Systems & Technology': 'School of Science and Technology',
-    'Artificial Intelligence (AI) & Robotics': 'School of Science and Technology',
-    'Data Science and Analytics': 'School of Science and Technology',
-    'Software Engineering': 'School of Science and Technology',
-    'Pharmacy': 'School of Pharmacy and Health Sciences',
-    'Nursing': 'School of Pharmacy and Health Sciences',
-    'Animation': 'School of Communication, Cinematic and Creative Arts',
-    'Film Production and Directing': 'School of Communication, Cinematic and Creative Arts',
-    'Journalism': 'School of Communication, Cinematic and Creative Arts'
-}
-
-# --- Helper Functions ---
-
-def check_eligibility(interest_code, math, eng, bio, phy, chem):
-    """Strict eligibility check for specific schools."""
-    if interest_code == 1: # Health
-        if bio < 7 or chem < 7:
-            return False, "Health Sciences require at least a C+ in Biology and Chemistry."
-    elif interest_code == 0: # Tech
-        if math < 7:
-            return False, "Technology and Engineering fields require at least a C+ in Mathematics."
-        if phy < 7 and phy > 0:
-             return False, "Engineering fields require at least a C+ in Physics."
-    elif interest_code == 2: # Business
-        if math < 6:
-            return False, "Business programs require a minimum of C in Mathematics."
-    return True, "Your grades meet the minimum requirements."
-
-def generate_explanation(major, math, eng, bio, phy, chem, tech, hum):
-    """Generates explanation for valid recommendations."""
-    if major in ['Pharmacy', 'Nursing']:
-        return f"Recommended because of strong Science background (Biology: {bio}pts, Chemistry: {chem}pts)."
-    elif major in ['Artificial Intelligence (AI) & Robotics', 'Software Engineering']:
-        return f"Recommended because of excellent STEM scores (Math: {math}pts, Physics: {phy}pts)."
-    elif major in ['Accounting', 'Finance']:
-        return f"Recommended because of strong numerical skills (Math: {math}pts) and Business background."
-    elif major in ['International Relations', 'Journalism']:
-        return f"Recommended because of strong language and humanities skills (English: {eng}pts)."
-    else:
-        return "Recommended based on a balanced academic profile matching general program requirements."
-
 # --- Routes ---
 
 @app.route('/')
@@ -136,11 +74,18 @@ def admin():
         return redirect(url_for('index'))
     
     users = User.query.all()
-    stats = {
+    
+    # Get statistics from both database and CSV data
+    db_stats = {
         'total_users': User.query.count(),
         'total_recommendations': Result.query.count(),
         'recent_activity': Result.query.order_by(Result.timestamp.desc()).limit(5).all()
     }
+    
+    csv_stats = get_recommendation_statistics()
+    
+    stats = {**db_stats, **csv_stats}
+    
     return render_template('admin.html', users=users, stats=stats)
 
 @app.route('/toggle_admin/<int:user_id>')
@@ -157,115 +102,377 @@ def toggle_admin(user_id):
         flash(f'Admin status updated for {user.username}.', 'success')
     return redirect(url_for('admin'))
 
+# ===== ENHANCED ADMIN ROUTES =====
+
+@app.route('/admin/recommendations')
+@login_required
+def admin_recommendations():
+    """View all student recommendations with search/filter."""
+    if not current_user.is_admin:
+        flash('Access Denied: Administrators only.', 'danger')
+        return redirect(url_for('index'))
+    
+    search_query = request.args.get('search', '').strip()
+    school_filter = request.args.get('school', '').strip()
+    page = request.args.get('page', 1, type=int)
+    
+    # Base query
+    query = Result.query
+    
+    # Apply filters
+    if search_query:
+        query = query.filter(
+            (Result.major.ilike(f'%{search_query}%')) |
+            (User.username.ilike(f'%{search_query}%')) |
+            (User.email.ilike(f'%{search_query}%'))
+        ).join(User)
+    else:
+        query = query.join(User)
+    
+    if school_filter:
+        query = query.filter(Result.school.ilike(f'%{school_filter}%'))
+    
+    # Paginate results (20 per page)
+    paginated = query.order_by(desc(Result.timestamp)).paginate(page=page, per_page=20)
+    
+    # Get unique schools for filter dropdown
+    schools = db.session.query(Result.school).distinct().all()
+    schools = [s[0] for s in schools]
+    
+    return render_template('admin_recommendations.html', 
+                         results=paginated.items,
+                         pagination=paginated,
+                         schools=schools,
+                         search_query=search_query,
+                         school_filter=school_filter)
+
+@app.route('/admin/recommendation/<int:rec_id>')
+@login_required
+def admin_view_recommendation(rec_id):
+    """View full details of a specific recommendation."""
+    if not current_user.is_admin:
+        flash('Access Denied: Administrators only.', 'danger')
+        return redirect(url_for('index'))
+    
+    result = Result.query.get_or_404(rec_id)
+    user = User.query.get(result.user_id)
+    
+    return render_template('admin_rec_detail.html', result=result, student=user)
+
+@app.route('/admin/recommendation/<int:rec_id>/delete', methods=['GET', 'POST'])
+@login_required
+def admin_delete_recommendation(rec_id):
+    """Delete a recommendation record."""
+    if not current_user.is_admin:
+        flash('Access Denied: Administrators only.', 'danger')
+        return redirect(url_for('index'))
+    
+    result = Result.query.get_or_404(rec_id)
+    student_name = result.author.username
+    
+    if request.method == 'POST':
+        db.session.delete(result)
+        db.session.commit()
+        flash(f'✓ Recommendation deleted: {result.major} for {student_name}', 'success')
+        return redirect(url_for('admin_recommendations'))
+    
+    return render_template('admin_confirm_delete.html', result=result, student_name=student_name)
+
+@app.route('/admin/user/<int:user_id>/history')
+@login_required
+def admin_user_history(user_id):
+    """View all recommendations for a specific user."""
+    if not current_user.is_admin:
+        flash('Access Denied: Administrators only.', 'danger')
+        return redirect(url_for('index'))
+    
+    user = User.query.get_or_404(user_id)
+    results = Result.query.filter_by(user_id=user_id).order_by(desc(Result.timestamp)).all()
+    
+    return render_template('admin_user_history.html', user=user, results=results)
+
+@app.route('/admin/delete-user/<int:user_id>', methods=['POST'])
+@login_required
+def admin_delete_user(user_id):
+    """Delete a user and all their recommendations."""
+    if not current_user.is_admin:
+        flash('Access Denied: Administrators only.', 'danger')
+        return redirect(url_for('index'))
+    
+    if user_id == current_user.id:
+        flash('❌ Cannot delete your own account.', 'danger')
+        return redirect(url_for('admin'))
+    
+    user = User.query.get_or_404(user_id)
+    username = user.username
+    
+    # Delete all recommendations for this user
+    Result.query.filter_by(user_id=user_id).delete()
+    db.session.delete(user)
+    db.session.commit()
+    
+    flash(f'✓ User {username} and all their data have been deleted.', 'success')
+    return redirect(url_for('admin'))
+
+@app.route('/admin/analytics')
+@login_required
+def admin_analytics():
+    """View analytics and insights."""
+    if not current_user.is_admin:
+        flash('Access Denied: Administrators only.', 'danger')
+        return redirect(url_for('index'))
+    
+    # Get analytics data
+    total_recommendations = Result.query.count()
+    total_users = User.query.count()
+    
+    # Top recommended majors
+    top_majors = db.session.query(
+        Result.major, 
+        func.count(Result.id).label('count')
+    ).group_by(Result.major).order_by(desc(func.count(Result.id))).limit(10).all()
+    
+    # Top schools
+    top_schools = db.session.query(
+        Result.school,
+        func.count(Result.id).label('count')
+    ).group_by(Result.school).order_by(desc(func.count(Result.id))).all()
+    
+    # Average confidence by major
+    avg_confidence = db.session.query(
+        Result.major,
+        func.avg(Result.confidence).label('avg_conf')
+    ).group_by(Result.major).order_by(desc(func.avg(Result.confidence))).limit(10).all()
+    
+    # Recommendations by date (last 7 days)
+    from datetime import timedelta
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    recent_count = Result.query.filter(Result.timestamp >= week_ago).count()
+    
+    analytics_data = {
+        'total_recommendations': total_recommendations,
+        'total_users': total_users,
+        'top_majors': top_majors,
+        'top_schools': top_schools,
+        'avg_confidence': avg_confidence,
+        'last_week_count': recent_count,
+        'csv_stats': get_recommendation_statistics()
+    }
+    
+    return render_template('admin_analytics.html', analytics=analytics_data)
+
+@app.route('/admin/export-data')
+@login_required
+def admin_export_data():
+    """Export all recommendations to CSV."""
+    if not current_user.is_admin:
+        flash('Access Denied: Administrators only.', 'danger')
+        return redirect(url_for('index'))
+    
+    results = Result.query.join(User).all()
+    
+    # Create CSV in memory
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow([
+        'Recommendation ID', 'Student Username', 'Student Email', 'Major Recommended',
+        'School', 'Confidence %', 'Timestamp', 'Date (YYYY-MM-DD)', 'Time'
+    ])
+    
+    # Write data
+    for result in results:
+        timestamp = result.timestamp
+        date_str = timestamp.strftime('%Y-%m-%d')
+        time_str = timestamp.strftime('%H:%M:%S')
+        writer.writerow([
+            result.id,
+            result.author.username,
+            result.author.email,
+            result.major,
+            result.school,
+            round(result.confidence, 2),
+            timestamp.isoformat(),
+            date_str,
+            time_str
+        ])
+    
+    # Create response
+    mem = StringIO()
+    mem.write(output.getvalue())
+    mem.seek(0)
+    
+    return render_template('export_data.html', csv_data=output.getvalue())
+
+@app.route('/admin/export-csv')
+@login_required
+def download_csv():
+    """Download recommendations as CSV file."""
+    if not current_user.is_admin:
+        flash('Access Denied: Administrators only.', 'danger')
+        return redirect(url_for('index'))
+    
+    results = Result.query.join(User).all()
+    
+    # Create CSV in memory
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow([
+        'ID', 'Username', 'Email', 'Major', 'School', 'Confidence', 'Date', 'Time'
+    ])
+    
+    # Write data
+    for result in results:
+        timestamp = result.timestamp
+        writer.writerow([
+            result.id,
+            result.author.username,
+            result.author.email,
+            result.major,
+            result.school,
+            round(result.confidence, 2),
+            timestamp.strftime('%Y-%m-%d'),
+            timestamp.strftime('%H:%M:%S')
+        ])
+    
+    response_output = output.getvalue()
+    output.close()
+    
+    # Create response with headers for download
+    from flask import Response
+    return Response(
+        response_output,
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=recommendations_export.csv'}
+    )
+
 @app.route('/predict', methods=['POST'])
 @login_required
 def predict():
     try:
-        # 1. Capture Inputs
-        math_pt = grade_mapping.get(request.form['math'].upper(), 0)
-        eng_pt = grade_mapping.get(request.form['english'].upper(), 0)
-        kisw_pt = grade_mapping.get(request.form['kiswahili'].upper(), 0)
-        bio_pt = grade_mapping.get(request.form.get('biology', 'NOT TAKEN').upper(), 0)
-        phy_pt = grade_mapping.get(request.form.get('physics', 'NOT TAKEN').upper(), 0)
-        chem_pt = grade_mapping.get(request.form.get('chemistry', 'NOT TAKEN').upper(), 0)
-        hum_pt = grade_mapping.get(request.form['humanities'].upper(), 0)
-        tech_pt = grade_mapping.get(request.form.get('tech_bus', 'NOT TAKEN').upper(), 0)
-        interest_str = request.form['interest']
+        # ===== 1. CAPTURE AND VALIDATE INPUTS =====
+        # Convert grade letters to points using shared mapping
+        math_pt = VALID_GRADES.get(request.form.get('math', '').upper(), 0)
+        eng_pt = VALID_GRADES.get(request.form.get('english', '').upper(), 0)
+        kisw_pt = VALID_GRADES.get(request.form.get('kiswahili', '').upper(), 0)
+        bio_pt = VALID_GRADES.get(request.form.get('biology', 'NOT TAKEN').upper(), 0)
+        phy_pt = VALID_GRADES.get(request.form.get('physics', 'NOT TAKEN').upper(), 0)
+        chem_pt = VALID_GRADES.get(request.form.get('chemistry', 'NOT TAKEN').upper(), 0)
+        hum_pt = VALID_GRADES.get(request.form.get('humanities', '').upper(), 0)
+        tech_pt = VALID_GRADES.get(request.form.get('tech_bus', 'NOT TAKEN').upper(), 0)
+        interest_str = request.form.get('interest', 'Undecided')
 
-        if 0 in [math_pt, eng_pt, kisw_pt]:
-            flash('Group I subjects are compulsory.', 'danger')
+        # ===== 2. VALIDATE COMPULSORY SUBJECTS =====
+        if math_pt == 0 or eng_pt == 0 or kisw_pt == 0:
+            flash('❌ Group I subjects (Math, English, Kiswahili) are COMPULSORY in KCSE.', 'danger')
             return redirect(url_for('index'))
 
-        # --- LOGIC FOR UNDECIDED ---
+        # ===== 3. PREPARE SCORES DICTIONARY =====
+        scores = {
+            'math': math_pt,
+            'english': eng_pt,
+            'kiswahili': kisw_pt,
+            'biology': bio_pt,
+            'physics': phy_pt,
+            'chemistry': chem_pt,
+            'humanities': hum_pt,
+            'tech_business': tech_pt
+        }
+
+        # ===== 4. DETERMINE INTEREST AND ELIGIBILITY =====
         if interest_str == 'Undecided':
-            scores = {
-                'Technology': (math_pt + phy_pt + tech_pt) / 3,
-                'Health': (bio_pt + chem_pt + math_pt) / 3,
-                'Business': (math_pt + tech_pt + eng_pt) / 3,
-                'Humanities': (eng_pt + kisw_pt + hum_pt) / 3,
-                'Creative': (eng_pt + tech_pt + hum_pt) / 3
-            }
-            best_fit = max(scores, key=scores.get)
-            if best_fit == 'Technology': interest_code = 0
-            elif best_fit == 'Health': interest_code = 1
-            elif best_fit == 'Business': interest_code = 2
-            elif best_fit == 'Humanities': interest_code = 3
-            else: interest_code = 4
-            undecided_mode = True
+            # For undecided: calculate best fit
+            interest_code, best_fit, field_scores = determine_best_fit(scores)
             is_eligible = True
             guidance_msg = ""
-            
+            undecided_mode = True
+            alternative_msg = f"Since you were undecided, we analyzed your strengths across all fields. Your best fit is <strong>{best_fit}</strong>."
         else:
-            # --- LOGIC FOR DECIDED STUDENTS ---
-            interest_code = interest_mapping.get(interest_str, 0)
+            # For decided students: check eligibility
+            interest_code = INTEREST_MAP.get(interest_str, 0)
+            is_eligible, guidance_msg = check_eligibility(interest_code, scores)
             undecided_mode = False
-            is_eligible, guidance_msg = check_eligibility(interest_code, math_pt, eng_pt, bio_pt, phy_pt, chem_pt)
+            alternative_msg = ""
 
-        # --- PIVOT LOGIC (If Strict Check Fails) ---
+        # ===== 5. PIVOT LOGIC: If not eligible, find best alternative =====
         final_interest_code = interest_code
-        
         if not is_eligible:
-            scores = {
-                'Technology': (math_pt + phy_pt + tech_pt) / 3,
-                'Health': (bio_pt + chem_pt + math_pt) / 3,
-                'Business': (math_pt + tech_pt + eng_pt) / 3,
-                'Humanities': (eng_pt + kisw_pt + hum_pt) / 3,
-                'Creative': (eng_pt + tech_pt + hum_pt) / 3
-            }
-            best_fit_area = max(scores, key=scores.get)
-            
-            if best_fit_area == 'Technology': final_interest_code = 0
-            elif best_fit_area == 'Health': final_interest_code = 1
-            elif best_fit_area == 'Business': final_interest_code = 2
-            elif best_fit_area == 'Humanities': final_interest_code = 3
-            else: final_interest_code = 4
+            # Student doesn't meet requirements for their choice
+            # Find what they're best suited for instead
+            interest_code_alt, best_fit_area, _ = determine_best_fit(scores)
+            final_interest_code = interest_code_alt
+            alternative_msg = (f"<strong>Guidance Note:</strong> {guidance_msg}<br><br>"
+                              f"<strong>Don't be discouraged!</strong> Everyone has different strengths. "
+                              f"Based on your actual scores, you show excellent potential in "
+                              f"<strong>{best_fit_area}</strong>. This path offers fantastic opportunities!")
 
-        # 2. Run Prediction
-        features = np.array([[math_pt, eng_pt, kisw_pt, bio_pt, phy_pt, chem_pt, hum_pt, tech_pt, final_interest_code]])
-        pred_encoded = model.predict(features)
-        confidence = model.predict_proba(features).max() * 100
-        major = label_encoder.inverse_transform(pred_encoded)[0]
-        school = school_map.get(major, "USIU-Africa")
-        
-        # 3. Generate Explanation
-        if undecided_mode:
-            explanation = (f"Since you were Undecided, we analyzed your strengths. "
-                           f"Your grades fit best in <strong>{best_fit}</strong>. Based on this, we recommend {major}.")
-        elif not is_eligible:
-            explanation = (f"<strong>Guidance Note:</strong> You selected <strong>{interest_str}</strong>, but unfortunately, {guidance_msg}<br><br>"
-                           f"<strong>Please don't be discouraged.</strong> We all have different strengths. "
-                           f"Based on your grades, you show great potential in <strong>{best_fit_area}</strong>. "
-                           f"This path offers excellent opportunities, and we recommend <strong>{major}</strong>.")
-        else:
-            explanation = generate_explanation(major, math_pt, eng_pt, bio_pt, phy_pt, chem_pt, tech_pt, hum_pt)
+        # ===== 6. GET RECOMMENDATION USING RULES =====
+        major, explanation, confidence = get_major_by_rules(scores, final_interest_code)
+        school = MAJOR_TO_SCHOOL.get(major, "USIU-Africa")
 
-        # 4. Save to History (FR7)
+        # ===== 7. SAVE TO DATABASE (History) =====
         new_result = Result(
-            major=major, 
-            school=school, 
-            confidence=round(confidence, 2), 
+            major=major,
+            school=school,
+            confidence=confidence,
             user_id=current_user.id
         )
         db.session.add(new_result)
         db.session.commit()
 
-        # 5. Prepare Input Summary
+        # ===== 8. SAVE TO CSV FOR DATA COLLECTION =====
+        student_data = {
+            'username': current_user.username,
+            'email': current_user.email,
+            'math': math_pt,
+            'english': eng_pt,
+            'kiswahili': kisw_pt,
+            'biology': bio_pt,
+            'physics': phy_pt,
+            'chemistry': chem_pt,
+            'humanities': hum_pt,
+            'tech_business': tech_pt,
+            'interest': interest_str,
+            'recommended_major': major,
+            'school': school,
+            'confidence': confidence,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        save_recommendation_data(student_data)
+
+        # ===== 9. PREPARE DISPLAY DATA =====
         input_summary = {
-            'Math': f"{request.form['math']} ({math_pt} pts)",
-            'English': f"{request.form['english']} ({eng_pt} pts)",
-            'Kiswahili': f"{request.form['kiswahili']} ({kisw_pt} pts)",
-            'Biology': f"{request.form.get('biology', 'N/A')} ({bio_pt} pts)" if bio_pt > 0 else "Not Taken",
-            'Physics': f"{request.form.get('physics', 'N/A')} ({phy_pt} pts)" if phy_pt > 0 else "Not Taken",
-            'Chemistry': f"{request.form.get('chemistry', 'N/A')} ({chem_pt} pts)" if chem_pt > 0 else "Not Taken",
-            'Humanity': f"{request.form['humanities']} ({hum_pt} pts)",
-            'Tech/Business': f"{request.form.get('tech_bus', 'N/A')} ({tech_pt} pts)" if tech_pt > 0 else "Not Taken",
+            'Math': f"{request.form.get('math', 'N/A')} ({math_pt}pts)",
+            'English': f"{request.form.get('english', 'N/A')} ({eng_pt}pts)",
+            'Kiswahili': f"{request.form.get('kiswahili', 'N/A')} ({kisw_pt}pts)",
+            'Biology': f"{request.form.get('biology', 'N/A')} ({bio_pt}pts)" if bio_pt > 0 else "Not Taken",
+            'Physics': f"{request.form.get('physics', 'N/A')} ({phy_pt}pts)" if phy_pt > 0 else "Not Taken",
+            'Chemistry': f"{request.form.get('chemistry', 'N/A')} ({chem_pt}pts)" if chem_pt > 0 else "Not Taken",
+            'Humanities': f"{request.form.get('humanities', 'N/A')} ({hum_pt}pts)",
+            'Tech/Business': f"{request.form.get('tech_bus', 'N/A')} ({tech_pt}pts)" if tech_pt > 0 else "Not Taken",
             'Interest': interest_str
         }
 
-        return render_template('index.html', result=major, school=school, confidence=round(confidence, 2), explanation=explanation, input_summary=input_summary, show_results=True, is_alternative=not is_eligible)
+        # Combine explanations
+        full_explanation = alternative_msg if alternative_msg else explanation
 
+        return render_template('index.html',
+                             result=major,
+                             school=school,
+                             confidence=round(confidence, 1),
+                             explanation=full_explanation,
+                             input_summary=input_summary,
+                             show_results=True,
+                             is_alternative=not is_eligible)
+
+    except KeyError as e:
+        flash(f"❌ Missing form field: {e}", 'danger')
+        return redirect(url_for('index'))
     except Exception as e:
-        flash(f"Error: {str(e)}", 'danger')
+        flash(f"❌ Error processing recommendation: {str(e)}", 'danger')
         return redirect(url_for('index'))
 
 # --- Authentication Routes ---
@@ -323,6 +530,52 @@ def logout():
     logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('login'))
+
+@app.route('/delete_account', methods=['GET', 'POST'])
+@login_required
+def delete_account():
+    """Allow users to delete their own account"""
+    if request.method == 'POST':
+        # Verify password before deletion
+        password = request.form.get('password', '')
+
+        if not current_user.check_password(password):
+            flash('Incorrect password. Account deletion cancelled.', 'danger')
+            return redirect(url_for('delete_account'))
+
+        # Prevent admin from deleting their own account if they're the only admin
+        if current_user.is_admin:
+            admin_count = User.query.filter_by(is_admin=True).count()
+            if admin_count <= 1:
+                flash('Cannot delete the last admin account. Please promote another user to admin first.', 'danger')
+                return redirect(url_for('delete_account'))
+
+        try:
+            # Get user ID before logout
+            user_id = current_user.id
+            username = current_user.username
+
+            # Delete all user's recommendations first (due to foreign key constraint)
+            Result.query.filter_by(user_id=user_id).delete()
+
+            # Delete the user
+            user = User.query.get(user_id)
+            db.session.delete(user)
+            db.session.commit()
+
+            # Log out the user
+            logout_user()
+
+            flash(f'Account "{username}" has been permanently deleted.', 'info')
+            return redirect(url_for('login'))
+
+        except Exception as e:
+            db.session.rollback()
+            flash('An error occurred while deleting your account. Please try again.', 'danger')
+            return redirect(url_for('delete_account'))
+
+    # GET request - show confirmation form
+    return render_template('delete_account.html')
 
 if __name__ == '__main__':
     with app.app_context():

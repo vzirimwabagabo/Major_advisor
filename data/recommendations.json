@@ -1,0 +1,11 @@
+[
+  {
+    "id": 1,
+    "user_id": 1,
+    "major": "Computer Science",
+    "school": "School of Science and Technology",
+    "confidence": 85.5,
+    "timestamp": "2026-03-27T09:40:43.652328",
+    "input_data": {}
+  }
+]

@@ -1,0 +1,31 @@
+# Production Requirements
+# Additional packages needed for production deployment
+
+# Web Server
+gunicorn==21.2.0
+
+# Database
+psycopg2-binary==2.9.7
+
+# Environment Variables
+python-dotenv==1.0.0
+
+# Database Migrations (optional)
+Flask-Migrate==4.0.5
+
+# Email (optional)
+Flask-Mail==0.9.1
+
+# Caching (optional)
+Flask-Caching==2.1.0
+
+# Monitoring (optional)
+sentry-sdk[flask]==1.28.1
+
+# Security
+Werkzeug==2.3.7
+bcrypt==4.0.1
+
+# Keep existing requirements
+-r requirements.txt</content>
+<parameter name="filePath">c:\Users\PC\OneDrive - United States International University (USIU)\Desktop\USIU-NOTES\USIU-NOTES 2026\APT4900\secured site\secured site\requirements-prod.txt

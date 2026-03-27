@@ -1,0 +1,18 @@
+[
+  {
+    "id": 1,
+    "username": "testuser",
+    "email": "test@example.com",
+    "password_hash": "$2b$12$BlmxFvGJEgIR903GA67eP.hPr8Lh0lMqtOnWAKTtVejIzNPE2Bl9y",
+    "is_admin": false,
+    "created_at": "2026-03-27T09:40:43.650312"
+  },
+  {
+    "id": 2,
+    "username": "admin",
+    "email": "admin@usiu.ac.ke",
+    "password_hash": "$2b$12$32IaRkW.wb91kC8QI2QOJu0F7826RaOIT8ASK.yx4iM5FgH3YQOtC",
+    "is_admin": true,
+    "created_at": "2026-03-27T09:42:16.325814"
+  }
+]

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delete Recommendation - Admin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; }
+        .admin-container { display: flex; min-height: 100vh; }
+        
+        .sidebar {
+            width: 250px;
+            background-color: #8B0000;
+            color: white;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        
+        .sidebar h2 { padding: 20px; font-size: 1.3em; border-bottom: 2px solid rgba(255,255,255,0.2); margin-bottom: 20px; }
+        
+        .nav-item { 
+            padding: 12px 20px; 
+            text-decoration: none;
+            display: block;
+            color: white;
+        }
+
+        .main-content { margin-left: 250px; padding: 30px; width: calc(100% - 250px); display: flex; align-items: center; justify-content: center; }
+
+        .modal {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .modal h2 { color: #dc3545; margin-bottom: 15px; }
+        .modal p { color: #666; margin: 15px 0; }
+
+        .info-box {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .info-box strong { color: #8B0000; display: block; margin-bottom: 5px; }
+
+        .btn { 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 0.95em; 
+            text-decoration: none; 
+            display: inline-block; 
+            margin: 10px 5px;
+        }
+
+        .btn-danger { background-color: #dc3545; color: white; }
+        .btn-cancel { background-color: #666; color: white; }
+        .btn-danger:hover { background-color: #c82333; }
+        .btn-cancel:hover { background-color: #555; }
+
+        @media (max-width: 768px) {
+            .admin-container { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; position: static; }
+            .main-content { margin-left: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="admin-container">
+    <div class="sidebar">
+        <h2>🔧 Admin Panel</h2>
+        <a href="{{ url_for('admin') }}" class="nav-item">📊 Dashboard</a>
+        <a href="{{ url_for('admin_recommendations') }}" class="nav-item">📋 All Recommendations</a>
+    </div>
+
+    <div class="main-content">
+        <div class="modal">
+            <h2>⚠️ Delete Recommendation</h2>
+            <p>Are you sure you want to delete this recommendation?</p>
+
+            <div class="info-box">
+                <strong>Student:</strong>
+                <span>{{ student_name }}</span>
+            </div>
+
+            <div class="info-box">
+                <strong>Major:</strong>
+                <span>{{ result.major }}</span>
+            </div>
+
+            <div class="info-box">
+                <strong>Date:</strong>
+                <span>{{ result.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
+            </div>
+
+            <p style="color: #dc3545; font-weight: bold; margin-top: 20px;">This action cannot be undone.</p>
+
+            <div style="margin-top: 30px;">
+                <form method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">🗑️ Delete Permanently</button>
+                </form>
+                <a href="{{ url_for('admin_recommendations') }}" class="btn btn-cancel">Cancel</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

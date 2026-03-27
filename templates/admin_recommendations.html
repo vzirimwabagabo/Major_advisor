@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Recommendations - Admin Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; }
+        .admin-container { display: flex; min-height: 100vh; }
+        
+        .sidebar {
+            width: 250px;
+            background-color: #8B0000;
+            color: white;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        
+        .sidebar h2 { padding: 20px; font-size: 1.3em; border-bottom: 2px solid rgba(255,255,255,0.2); margin-bottom: 20px; }
+        
+        .nav-item { 
+            padding: 12px 20px; 
+            text-decoration: none;
+            display: block;
+            color: white;
+            border-left: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .nav-item:hover { background-color: rgba(255,255,255,0.1); border-left-color: #FFD700; }
+        .nav-item.active { background-color: rgba(255,255,255,0.2); border-left-color: #FFD700; font-weight: bold; }
+
+        .main-content { margin-left: 250px; padding: 30px; width: calc(100% - 250px); }
+
+        .admin-header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .admin-header h1 { color: #8B0000; }
+
+        .content-section { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .content-section h2 { color: #8B0000; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #eee; }
+
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .filter-bar input, .filter-bar select, .filter-bar button { padding: 10px 15px; border: 1px solid #ddd; border-radius: 4px; }
+        .filter-bar button { background-color: #8B0000; color: white; cursor: pointer; }
+        .filter-bar button:hover { background-color: #6b0000; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background-color: #f5f5f5; font-weight: 600; }
+        tr:hover { background-color: #f9f9f9; }
+
+        .btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; text-decoration: none; display: inline-block; }
+        .btn-info { background-color: #2196f3; color: white; }
+        .btn-danger { background-color: #dc3545; color: white; }
+        .btn-info:hover { background-color: #0b7dda; }
+        .btn-danger:hover { background-color: #c82333; }
+
+        .pagination { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
+        .pagination a, .pagination span { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; text-decoration: none; }
+        .pagination a:hover { background-color: #f0f0f0; }
+        .pagination .current { background-color: #8B0000; color: white; border-color: #8B0000; }
+
+        .empty-state { text-align: center; padding: 40px; color: #999; }
+
+        @media (max-width: 768px) {
+            .admin-container { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; position: static; }
+            .main-content { margin-left: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="admin-container">
+    <div class="sidebar">
+        <h2>🔧 Admin Panel</h2>
+        <a href="{{ url_for('admin') }}" class="nav-item">📊 Dashboard</a>
+        <a href="{{ url_for('admin_recommendations') }}" class="nav-item active">📋 All Recommendations</a>
+        <a href="{{ url_for('admin_analytics') }}" class="nav-item">📈 Analytics & Insights</a>
+        <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.2); margin: 15px 0;">
+        <a href="{{ url_for('admin_export_data') }}" class="nav-item">💾 Export Data</a>
+        <a href="{{ url_for('index') }}" class="nav-item">🏠 Back to Home</a>
+        <a href="{{ url_for('logout') }}" class="nav-item">🚪 Logout</a>
+    </div>
+
+    <div class="main-content">
+        <div class="admin-header">
+            <h1>📋 All Recommendations</h1>
+            <p style="color: #666; margin-top: 8px;">Browse, search, and manage all student recommendations</p>
+        </div>
+
+        <!-- Alerts -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div style="padding: 12px 20px; margin-bottom: 20px; border-radius: 4px; border-left: 4px solid #28a745; background-color: #d4edda; color: #155724;">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="content-section">
+            <!-- Search/Filter -->
+            <div class="filter-bar">
+                <form method="GET" style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap;">
+                    <input type="text" name="search" placeholder="Search by student, email, or major..." value="{{ search_query }}" style="flex: 1; min-width: 200px;">
+                    <select name="school" style="min-width: 150px;">
+                        <option value="">All Schools</option>
+                        {% for school in schools %}
+                            <option value="{{ school }}" {% if school_filter == school %}selected{% endif %}>{{ school }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit">🔍 Search</button>
+                    {% if search_query or school_filter %}
+                        <a href="{{ url_for('admin_recommendations') }}" style="padding: 10px 15px; background-color: #999; color: white; text-decoration: none; border-radius: 4px; cursor: pointer;">Clear</a>
+                    {% endif %}
+                </form>
+            </div>
+
+            <!-- Results Table -->
+            {% if results %}
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Date</th>
+                                <th>Student</th>
+                                <th>Email</th>
+                                <th>Major</th>
+                                <th>School</th>
+                                <th>Confidence</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for result in results %}
+                                <tr>
+                                    <td>#{{ result.id }}</td>
+                                    <td>{{ result.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td><strong>{{ result.author.username }}</strong></td>
+                                    <td>{{ result.author.email }}</td>
+                                    <td>{{ result.major }}</td>
+                                    <td>{{ result.school }}</td>
+                                    <td><strong>{{ "%.1f"|format(result.confidence) }}%</strong></td>
+                                    <td>
+                                        <a href="{{ url_for('admin_view_recommendation', rec_id=result.id) }}" class="btn btn-info">View</a>
+                                        <a href="{{ url_for('admin_delete_recommendation', rec_id=result.id) }}" class="btn btn-danger">Delete</a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if pagination.pages > 1 %}
+                    <div class="pagination">
+                        {% if pagination.has_prev %}
+                            <a href="{{ url_for('admin_recommendations', page=pagination.prev_num, search=search_query, school=school_filter) }}">← Previous</a>
+                        {% endif %}
+
+                        {% for page_num in pagination.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num == pagination.page %}
+                                    <span class="current">{{ page_num }}</span>
+                                {% else %}
+                                    <a href="{{ url_for('admin_recommendations', page=page_num, search=search_query, school=school_filter) }}">{{ page_num }}</a>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if pagination.has_next %}
+                            <a href="{{ url_for('admin_recommendations', page=pagination.next_num, search=search_query, school=school_filter) }}">Next →</a>
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+            {% else %}
+                <div class="empty-state">
+                    <p>No recommendations found.</p>
+                    {% if search_query or school_filter %}
+                        <p style="margin-top: 10px;">Try <a href="{{ url_for('admin_recommendations') }}" style="color: #8B0000; text-decoration: none;">clearing your filters</a></p>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+</body>
+</html>

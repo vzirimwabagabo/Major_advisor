@@ -94,6 +94,7 @@
                     <a href="{{ url_for('admin') }}" style="text-decoration:none; color:#8B0000; margin-right:15px; font-weight:bold;">Admin Panel</a>
                 {% endif %}
                 
+                <a href="{{ url_for('delete_account') }}" style="color:#dc3545; font-weight:bold; margin-right:15px;" onclick="return confirm('Are you sure you want to delete your account? This action cannot be undone.')">Delete Account</a>
                 <a href="{{ url_for('logout') }}" style="color:#8B0000; font-weight:bold;">Logout</a>
             </div>
         </div>

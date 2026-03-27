@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recommendation Detail - Admin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; }
+        .admin-container { display: flex; min-height: 100vh; }
+        
+        .sidebar {
+            width: 250px;
+            background-color: #8B0000;
+            color: white;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        
+        .sidebar h2 { padding: 20px; font-size: 1.3em; border-bottom: 2px solid rgba(255,255,255,0.2); margin-bottom: 20px; }
+        
+        .nav-item { 
+            padding: 12px 20px; 
+            text-decoration: none;
+            display: block;
+            color: white;
+            border-left: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .nav-item:hover { background-color: rgba(255,255,255,0.1); border-left-color: #FFD700; }
+        .nav-item.active { background-color: rgba(255,255,255,0.2); border-left-color: #FFD700; font-weight: bold; }
+
+        .main-content { margin-left: 250px; padding: 30px; width: calc(100% - 250px); }
+
+        .admin-header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .admin-header h1 { color: #8B0000; }
+
+        .content-section { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .content-section h2 { color: #8B0000; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #eee; }
+
+        .detail-row { 
+            display: flex; 
+            padding: 12px 0; 
+            border-bottom: 1px solid #eee;
+        }
+        .detail-row strong { width: 200px; color: #8B0000; }
+        .detail-row span { flex: 1; }
+
+        .btn { padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.95em; text-decoration: none; display: inline-block; margin-right: 10px; }
+        .btn-back { background-color: #666; color: white; }
+        .btn-delete { background-color: #dc3545; color: white; }
+        .btn-back:hover { background-color: #555; }
+        .btn-delete:hover { background-color: #c82333; }
+
+        .actions { margin-bottom: 30px; }
+
+        @media (max-width: 768px) {
+            .admin-container { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; position: static; }
+            .main-content { margin-left: 0; width: 100%; }
+            .detail-row { flex-direction: column; }
+            .detail-row strong { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="admin-container">
+    <div class="sidebar">
+        <h2>🔧 Admin Panel</h2>
+        <a href="{{ url_for('admin') }}" class="nav-item">📊 Dashboard</a>
+        <a href="{{ url_for('admin_recommendations') }}" class="nav-item active">📋 All Recommendations</a>
+        <a href="{{ url_for('admin_analytics') }}" class="nav-item">📈 Analytics & Insights</a>
+        <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.2); margin: 15px 0;">
+        <a href="{{ url_for('index') }}" class="nav-item">🏠 Back to Home</a>
+        <a href="{{ url_for('logout') }}" class="nav-item">🚪 Logout</a>
+    </div>
+
+    <div class="main-content">
+        <div class="admin-header">
+            <h1>📄 Recommendation Detail</h1>
+            <p style="color: #666;">View full details of student recommendation</p>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions">
+            <a href="{{ url_for('admin_recommendations') }}" class="btn btn-back">← Back to Recommendations</a>
+            <a href="{{ url_for('admin_delete_recommendation', rec_id=result.id) }}" class="btn btn-delete" onclick="return confirm('Delete this recommendation?')">🗑️ Delete</a>
+        </div>
+
+        <!-- Recommendation Details -->
+        <div class="content-section">
+            <h2>📋 Recommendation Information</h2>
+
+            <div class="detail-row">
+                <strong>Recommendation ID:</strong>
+                <span>#{{ result.id }}</span>
+            </div>
+
+            <div class="detail-row">
+                <strong>Date/Time:</strong>
+                <span>{{ result.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+            </div>
+
+            <div class="detail-row">
+                <strong>Recommended Major:</strong>
+                <span><strong style="color: #8B0000; font-size: 1.1em;">{{ result.major }}</strong></span>
+            </div>
+
+            <div class="detail-row">
+                <strong>School/Faculty:</strong>
+                <span>{{ result.school }}</span>
+            </div>
+
+            <div class="detail-row">
+                <strong>Confidence Score:</strong>
+                <span>
+                    <strong>{{ "%.2f"|format(result.confidence) }}%</strong>
+                    <div style="background: #eee; height: 20px; border-radius: 10px; margin-top: 5px; overflow: hidden; width: 200px;">
+                        <div style="background: #8B0000; height: 100%; width: {{ result.confidence }}%; transition: width 0.3s;"></div>
+                    </div>
+                </span>
+            </div>
+        </div>
+
+        <!-- Student Information -->
+        <div class="content-section">
+            <h2>👤 Student Information</h2>
+
+            <div class="detail-row">
+                <strong>Student Name:</strong>
+                <span>{{ student.username }}</span>
+            </div>
+
+            <div class="detail-row">
+                <strong>Email:</strong>
+                <span>{{ student.email }}</span>
+            </div>
+
+            <div class="detail-row">
+                <strong>Student ID:</strong>
+                <span>#{{ student.id }}</span>
+            </div>
+
+            <div class="detail-row">
+                <strong>Total Recommendations:</strong>
+                <span>{{ student.results|length }}</span>
+            </div>
+
+            <div class="detail-row">
+                <strong>Account Status:</strong>
+                <span>
+                    {% if student.is_admin %}
+                        <span style="color: #8B0000; font-weight: bold;">🔑 Admin</span>
+                    {% else %}
+                        <span style="color: #666;">👤 Active Student</span>
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="detail-row">
+                <strong>Action:</strong>
+                <span>
+                    <a href="{{ url_for('admin_user_history', user_id=student.id) }}" style="color: #2196f3; text-decoration: none; cursor: pointer;">View all {{ student.username }}'s recommendations →</a>
+                </span>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+</body>
+</html>
