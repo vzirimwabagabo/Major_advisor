@@ -4,7 +4,8 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from flask_bcrypt import Bcrypt
 from recommendations import (
     get_major_by_rules, determine_best_fit, check_eligibility,
-    MAJOR_TO_SCHOOL, INTEREST_MAP, VALID_GRADES, generate_report
+    MAJOR_TO_SCHOOL, INTEREST_MAP, VALID_GRADES, generate_report,
+    parse_grade_input, analyze_interest_text
 )
 from model_training import save_recommendation_data, get_recommendation_statistics
 from datetime import datetime
@@ -354,20 +355,27 @@ def download_csv():
 def predict():
     try:
         # ===== 1. CAPTURE AND VALIDATE INPUTS =====
-        # Convert grade letters to points using shared mapping
-        math_pt = VALID_GRADES.get(request.form.get('math', '').upper(), 0)
-        eng_pt = VALID_GRADES.get(request.form.get('english', '').upper(), 0)
-        kisw_pt = VALID_GRADES.get(request.form.get('kiswahili', '').upper(), 0)
-        bio_pt = VALID_GRADES.get(request.form.get('biology', 'NOT TAKEN').upper(), 0)
-        phy_pt = VALID_GRADES.get(request.form.get('physics', 'NOT TAKEN').upper(), 0)
-        chem_pt = VALID_GRADES.get(request.form.get('chemistry', 'NOT TAKEN').upper(), 0)
-        hum_pt = VALID_GRADES.get(request.form.get('humanities', '').upper(), 0)
-        tech_pt = VALID_GRADES.get(request.form.get('tech_bus', 'NOT TAKEN').upper(), 0)
-        interest_str = request.form.get('interest', 'Undecided')
+        # Parse flexible grade inputs
+        math_pt = parse_grade_input(request.form.get('math', '').strip())
+        eng_pt = parse_grade_input(request.form.get('english', '').strip())
+        kisw_pt = parse_grade_input(request.form.get('kiswahili', '').strip())
+        bio_pt = parse_grade_input(request.form.get('biology', '').strip()) if request.form.get('biology', '').strip() else 0
+        phy_pt = parse_grade_input(request.form.get('physics', '').strip()) if request.form.get('physics', '').strip() else 0
+        chem_pt = parse_grade_input(request.form.get('chemistry', '').strip()) if request.form.get('chemistry', '').strip() else 0
+        hum_pt = parse_grade_input(request.form.get('humanities', '').strip())
+        tech_pt = parse_grade_input(request.form.get('tech_bus', '').strip()) if request.form.get('tech_bus', '').strip() else 0
+        
+        # Analyze natural language interest input
+        interest_text = request.form.get('interest', '').strip()
+        interest_code, detected_interests = analyze_interest_text(interest_text)
 
         # ===== 2. VALIDATE COMPULSORY SUBJECTS =====
         if math_pt == 0 or eng_pt == 0 or kisw_pt == 0:
-            flash('❌ Group I subjects (Math, English, Kiswahili) are COMPULSORY in KCSE.', 'danger')
+            flash('❌ Group I subjects (Math, English, Kiswahili) are COMPULSORY in KCSE. Please enter valid grades.', 'danger')
+            return redirect(url_for('index'))
+        
+        if hum_pt == 0:
+            flash('❌ Please enter a valid grade for your Humanities subject.', 'danger')
             return redirect(url_for('index'))
 
         # ===== 3. PREPARE SCORES DICTIONARY =====
@@ -383,16 +391,16 @@ def predict():
         }
 
         # ===== 4. DETERMINE INTEREST AND ELIGIBILITY =====
-        if interest_str == 'Undecided':
+        if interest_code == -1:  # Undecided/unclear interests
             # For undecided: calculate best fit
-            interest_code, best_fit, field_scores = determine_best_fit(scores)
+            interest_code_alt, best_fit, field_scores = determine_best_fit(scores)
+            final_interest_code = interest_code_alt
             is_eligible = True
             guidance_msg = ""
             undecided_mode = True
-            alternative_msg = f"Since you were undecided, we analyzed your strengths across all fields. Your best fit is <strong>{best_fit}</strong>."
+            alternative_msg = f"Based on your description, we analyzed your interests and academic strengths. Your best fit appears to be in <strong>{best_fit}</strong>."
         else:
             # For decided students: check eligibility
-            interest_code = INTEREST_MAP.get(interest_str, 0)
             is_eligible, guidance_msg = check_eligibility(interest_code, scores)
             undecided_mode = False
             alternative_msg = ""
@@ -435,7 +443,8 @@ def predict():
             'chemistry': chem_pt,
             'humanities': hum_pt,
             'tech_business': tech_pt,
-            'interest': interest_str,
+            'interest_raw': interest_text,  # Store raw interest text
+            'interest_detected': detected_interests,  # Store detected interests
             'recommended_major': major,
             'school': school,
             'confidence': confidence,
@@ -453,7 +462,7 @@ def predict():
             'Chemistry': f"{request.form.get('chemistry', 'N/A')} ({chem_pt}pts)" if chem_pt > 0 else "Not Taken",
             'Humanities': f"{request.form.get('humanities', 'N/A')} ({hum_pt}pts)",
             'Tech/Business': f"{request.form.get('tech_bus', 'N/A')} ({tech_pt}pts)" if tech_pt > 0 else "Not Taken",
-            'Interest': interest_str
+            'Your Interests': f'"{interest_text[:50]}..."' if len(interest_text) > 50 else f'"{interest_text}"'
         }
 
         # Combine explanations

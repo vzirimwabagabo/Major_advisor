@@ -10,6 +10,97 @@ VALID_GRADES = {
     'D-': 2, 'E': 1, 'NOT TAKEN': 0
 }
 
+# ==================== FLEXIBLE GRADE PARSING ====================
+def parse_grade_input(grade_text):
+    """
+    Parse flexible grade input from user text
+    Accepts various formats: A, a, A-, a-, B+, etc.
+    """
+    if not grade_text or grade_text.upper() in ['NOT TAKEN', 'N/A', 'NONE', '']:
+        return 0
+    
+    # Clean and normalize the input
+    grade = grade_text.strip().upper()
+    
+    # Handle common variations
+    grade_map = {
+        'A': 12, 'A-': 11, 'A MINUS': 11,
+        'B+': 10, 'B PLUS': 10, 'B': 9, 'B-': 8, 'B MINUS': 8,
+        'C+': 7, 'C PLUS': 7, 'C': 6, 'C-': 5, 'C MINUS': 5,
+        'D+': 4, 'D PLUS': 4, 'D': 3, 'D-': 2, 'D MINUS': 2,
+        'E': 1
+    }
+    
+    return grade_map.get(grade, 0)  # Return 0 if grade not recognized
+
+# ==================== NATURAL LANGUAGE INTEREST ANALYSIS ====================
+def analyze_interest_text(interest_text):
+    """
+    Analyze natural language interest description and map to interest categories
+    Returns: (interest_code, detected_interests_list)
+    """
+    if not interest_text or len(interest_text.strip()) < 3:
+        return -1, ["unclear"]
+    
+    text = interest_text.lower().strip()
+    
+    # Define keyword mappings for each interest category
+    interest_keywords = {
+        0: {  # Technology & Engineering
+            'technology', 'tech', 'computer', 'programming', 'coding', 'software', 'engineering', 
+            'it', 'ai', 'artificial intelligence', 'robotics', 'data', 'analytics', 'web', 'app',
+            'mobile', 'game', 'gaming', 'cybersecurity', 'network', 'database', 'algorithm',
+            'machine learning', 'automation', 'innovation', 'digital', 'electronics', 'hardware'
+        },
+        1: {  # Health Sciences
+            'health', 'medical', 'doctor', 'nurse', 'pharmacy', 'medicine', 'hospital', 'patient',
+            'healthcare', 'biology', 'chemistry', 'anatomy', 'physiology', 'disease', 'treatment',
+            'wellness', 'nutrition', 'pharmaceutical', 'therapy', 'surgery', 'clinic', 'care',
+            'help people', 'healing', 'life science', 'biomedical'
+        },
+        2: {  # Business & Commerce
+            'business', 'commerce', 'finance', 'accounting', 'marketing', 'management', 'entrepreneur',
+            'startup', 'corporate', 'economy', 'trade', 'investment', 'banking', 'sales', 'leadership',
+            'strategy', 'consulting', 'economics', 'commerce', 'profit', 'money', 'wealth', 'enterprise'
+        },
+        3: {  # Humanities & Social Sciences
+            'humanities', 'social science', 'psychology', 'sociology', 'history', 'politics', 'government',
+            'international relations', 'law', 'justice', 'education', 'teaching', 'research', 'society',
+            'culture', 'anthropology', 'philosophy', 'ethics', 'human behavior', 'social', 'community',
+            'development', 'policy', 'diplomacy', 'understanding people', 'society'
+        },
+        4: {  # Creative Arts & Media
+            'art', 'creative', 'design', 'media', 'film', 'animation', 'journalism', 'communication',
+            'photography', 'music', 'theater', 'acting', 'writing', 'literature', 'graphic design',
+            'advertising', 'broadcasting', 'entertainment', 'storytelling', 'visual', 'performance',
+            'cinema', 'production', 'editing', 'content creation'
+        }
+    }
+    
+    # Check for undecided/unclear keywords
+    undecided_keywords = {'not sure', 'undecided', 'unclear', 'confused', 'don\'t know', 'unsure', 'confusing'}
+    if any(keyword in text for keyword in undecided_keywords):
+        return -1, ["undecided"]
+    
+    # Count matches for each interest category
+    scores = {}
+    detected_keywords = []
+    
+    for interest_code, keywords in interest_keywords.items():
+        matches = [kw for kw in keywords if kw in text]
+        scores[interest_code] = len(matches)
+        if matches:
+            detected_keywords.extend(matches[:3])  # Limit to top 3 matches per category
+    
+    # Find the highest scoring interest
+    if scores:
+        best_interest = max(scores.items(), key=lambda x: x[1])
+        if best_interest[1] > 0:  # At least one match
+            return best_interest[0], list(set(detected_keywords))  # Remove duplicates
+    
+    # If no clear matches, return undecided
+    return -1, ["unclear interests"]
+
 # ==================== PROGRAMS BY SCHOOL ====================
 PROGRAMS = {
     'Chandaria School of Business': [

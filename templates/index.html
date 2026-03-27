@@ -40,7 +40,9 @@
         }
         
         label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.85em; color: #444; }
-        select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
+        input[type="text"], textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-size: 0.9em; }
+        input[type="text"]:focus, textarea:focus { border-color: #8B0000; outline: none; }
+        .help-text { font-size: 0.75em; color: #666; margin-top: 3px; font-style: italic; }
         
         button { width: 100%; background-color: #8B0000; color: white; padding: 15px; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 25px; font-weight: bold; }
         button:hover { background-color: #a30000; }
@@ -117,112 +119,75 @@
         
         <div>
             <label>Mathematics (121/122)</label>
-            <select name="math" required>
-                <option value="" disabled selected>Select Grade</option>
-                <option value="A">A</option><option value="A-">A-</option>
-                <option value="B+">B+</option><option value="B">B</option>
-                <option value="B-">B-</option><option value="C+">C+</option>
-                <option value="C">C</option><option value="C-">C-</option>
-                <option value="D+">D+</option><option value="D">D</option>
-            </select>
+            <input type="text" name="math" placeholder="e.g., A, B+, A-, B" required>
+            <div class="help-text">Enter your KCSE Mathematics grade (required)</div>
         </div>
 
         <div>
             <label>English (101)</label>
-            <select name="english" required>
-                <option value="" disabled selected>Select Grade</option>
-                <option value="A">A</option><option value="A-">A-</option>
-                <option value="B+">B+</option><option value="B">B</option>
-                <option value="B-">B-</option><option value="C+">C+</option>
-                <option value="C">C</option>
-            </select>
+            <input type="text" name="english" placeholder="e.g., A, B+, A-, B" required>
+            <div class="help-text">Enter your KCSE English grade (required)</div>
         </div>
 
         <div>
             <label>Kiswahili (102)</label>
-            <select name="kiswahili" required>
-                <option value="" disabled selected>Select Grade</option>
-                <option value="A">A</option><option value="A-">A-</option>
-                <option value="B+">B+</option><option value="B">B</option>
-                <option value="B-">B-</option><option value="C+">C+</option>
-                <option value="C">C</option>
-            </select>
+            <input type="text" name="kiswahili" placeholder="e.g., A, B+, A-, B" required>
+            <div class="help-text">Enter your KCSE Kiswahili grade (required)</div>
         </div>
 
         <!-- GROUP II: SCIENCES -->
-        <div class="section-header">Group II: Sciences (Select at least two)</div>
+        <div class="section-header">Group II: Sciences (Optional - leave blank if not taken)</div>
 
         <div>
             <label>Biology (231)</label>
-            <select name="biology">
-                <option value="NOT TAKEN" selected>Not Taken</option>
-                <option value="A">A</option><option value="A-">A-</option>
-                <option value="B+">B+</option><option value="B">B</option>
-                <option value="B-">B-</option><option value="C+">C+</option>
-            </select>
+            <input type="text" name="biology" placeholder="e.g., A, B+, A-, B or leave blank">
+            <div class="help-text">Enter your KCSE Biology grade (optional)</div>
         </div>
 
         <div>
             <label>Physics (232)</label>
-            <select name="physics">
-                <option value="NOT TAKEN" selected>Not Taken</option>
-                <option value="A">A</option><option value="A-">A-</option>
-                <option value="B+">B+</option><option value="B">B</option>
-                <option value="B-">B-</option><option value="C+">C+</option>
-            </select>
+            <input type="text" name="physics" placeholder="e.g., A, B+, A-, B or leave blank">
+            <div class="help-text">Enter your KCSE Physics grade (optional)</div>
         </div>
 
         <div>
             <label>Chemistry (233)</label>
-            <select name="chemistry">
-                <option value="NOT TAKEN" selected>Not Taken</option>
-                <option value="A">A</option><option value="A-">A-</option>
-                <option value="B+">B+</option><option value="B">B</option>
-                <option value="B-">B-</option><option value="C+">C+</option>
-            </select>
+            <input type="text" name="chemistry" placeholder="e.g., A, B+, A-, B or leave blank">
+            <div class="help-text">Enter your KCSE Chemistry grade (optional)</div>
         </div>
 
         <!-- GROUP III: HUMANITIES -->
-        <div class="section-header">Group III: Humanities (Select one)</div>
+        <div class="section-header">Group III: Humanities (Required - History, Geography, or Religious Education)</div>
 
         <div>
-            <label>Best Humanity (History/Geo/RE)</label>
-            <select name="humanities" required>
-                <option value="" disabled selected>Select Grade</option>
-                <option value="A">A</option><option value="A-">A-</option>
-                <option value="B+">B+</option><option value="B">B</option>
-                <option value="B-">B-</option><option value="C+">C+</option>
-                <option value="C">C</option>
-            </select>
+            <label>Best Humanity Subject</label>
+            <input type="text" name="humanities" placeholder="e.g., A, B+, A-, B" required>
+            <div class="help-text">Enter your best KCSE Humanities grade (required)</div>
         </div>
 
         <!-- GROUP IV/V: APPLIED / BUSINESS -->
-        <div class="section-header">Group IV/V: Technical & Business</div>
+        <div class="section-header">Group IV/V: Technical & Business (Optional)</div>
 
         <div>
             <label>Best Technical/Business Subject</label>
-            <select name="tech_bus">
-                <option value="NOT TAKEN" selected>Not Taken</option>
-                <option value="A">A</option><option value="A-">A-</option>
-                <option value="B+">B+</option><option value="B">B</option>
-                <option value="B-">B-</option><option value="C+">C+</option>
-                <option value="C">C</option>
-            </select>
+            <input type="text" name="tech_bus" placeholder="e.g., A, B+, A-, B or leave blank">
+            <div class="help-text">Enter your best Technical/Business grade (optional)</div>
         </div>
 
         <!-- INTEREST -->
-        <div class="section-header">Student Interest</div>
+        <div class="section-header">Tell Us About Your Interests</div>
         <div class="full-width">
-            <label>Preferred Career Pathway</label>
-            <select name="interest" required>
-                <option value="" disabled selected>Select Interest</option>
-                <option value="Undecided">I am Undecided / Not Sure</option>
-                <option value="Technology & Engineering">Technology & Engineering</option>
-                <option value="Health Sciences">Health Sciences</option>
-                <option value="Business & Commerce">Business & Commerce</option>
-                <option value="Humanities & Social Sciences">Humanities & Social Sciences</option>
-                <option value="Creative Arts & Media">Creative Arts & Media</option>
-            </select>
+            <label>Describe your interests and career aspirations</label>
+            <textarea name="interest" rows="4" placeholder="Tell us what you're passionate about! For example:
+• I love technology and want to create apps and websites
+• I'm interested in business and entrepreneurship
+• I want to help people and work in healthcare
+• I'm creative and enjoy media, film, or design
+• I like understanding people and society
+• I'm not sure yet, but I enjoy science and problem-solving
+
+Be as specific as you want - this helps us give you better recommendations!" required></textarea>
+            <div class="help-text">Describe your interests in your own words. This helps us understand what majors might suit you best and also helps USIU plan new programs based on student needs.</div>
         </div>
 
         <button type="submit">Analyze Subjects</button>
