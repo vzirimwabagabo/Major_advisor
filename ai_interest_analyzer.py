@@ -370,6 +370,91 @@ def analyze_interest_text_advanced(interest_text: str, grades_dict: Dict = None)
     # Fall back to enhanced semantic analysis with interaction awareness
     return analyze_interest_text_semantic(text, grades_dict, interaction_score, interaction_pref)
 
+def generate_analytical_reasoning(interest_name: str, keywords_found: List[str], grades_dict: Dict = None, interaction_pref: str = "", confidence: float = 0) -> str:
+    """
+    Generate detailed, conversational reasoning that shows analysis of interests and grades.
+    
+    Returns:
+        Detailed explanation of the recommendation
+    """
+    reasoning_parts = []
+    
+    # 1. Interest Analysis
+    if keywords_found:
+        keyword_str = ", ".join(keywords_found[:5])
+        reasoning_parts.append(f"📌 **Your Interests:** You mentioned key interests in {keyword_str}")
+    else:
+        reasoning_parts.append(f"📌 **Your Interests:** Your interests point toward {interest_name}")
+    
+    # 2. Grade Analysis for the Category
+    if grades_dict:
+        relevant_grades = []
+        grade_strengths = []
+        grade_challenges = []
+        
+        if interest_name == "Technology & Engineering":
+            relevant_subjects = {'math': 'Mathematics', 'physics': 'Physics', 'chemistry': 'Chemistry'}
+        elif interest_name == "Health Sciences":
+            relevant_subjects = {'biology': 'Biology', 'chemistry': 'Chemistry', 'physics': 'Physics'}
+        elif interest_name == "Business & Commerce":
+            relevant_subjects = {'math': 'Mathematics', 'english': 'English', 'physics': 'Tech/Business'}
+        elif interest_name in ["Humanities & Social Sciences", "Creative Arts & Media"]:
+            relevant_subjects = {'english': 'English', 'humanities': 'Humanities', 'kiswahili': 'Kiswahili'}
+        else:
+            relevant_subjects = {}
+        
+        # Analyze relevant grades
+        grade_map = {12: 'A', 11: 'A-', 10: 'B+', 9: 'B', 8: 'B-', 7: 'C+', 6: 'C', 5: 'C-', 4: 'D+', 3: 'D', 2: 'D-', 1: 'E'}
+        
+        for key, display_name in relevant_subjects.items():
+            grade_val = grades_dict.get(key, 0)
+            if grade_val > 0:
+                grade_letter = grade_map.get(grade_val, f"Score {grade_val}")
+                relevant_grades.append(f"{display_name}: {grade_letter}")
+                
+                if grade_val >= 10:
+                    grade_strengths.append(display_name)
+                elif grade_val < 6:
+                    grade_challenges.append(display_name)
+        
+        if relevant_grades:
+            grade_analysis = f"📊 **Your Academic Strengths:** {', '.join(relevant_grades)}"
+            reasoning_parts.append(grade_analysis)
+        
+        # 3. Alignment Analysis
+        if grade_strengths:
+            alignment = f"✅ **Strong Alignment:** Your excellent grades in {', '.join(grade_strengths)} are perfect for {interest_name}"
+            reasoning_parts.append(alignment)
+        elif grade_challenges:
+            alignment = f"⚠️ **Academic Consideration:** You may want to strengthen {', '.join(grade_challenges)} to maximize your success in this field"
+            reasoning_parts.append(alignment)
+        else:
+            alignment = f"✅ **Alignment:** Your academic profile supports your interest in {interest_name}"
+            reasoning_parts.append(alignment)
+    
+    # 4. Interaction Preference (if mentioned)
+    if interaction_pref and interaction_pref != "Flexible/no clear preference":
+        if "Very people-oriented" in interaction_pref:
+            reasoning_parts.append(f"👥 **Work Style:** You're clearly people-focused - this recommendation considers roles with high collaboration")
+        elif "Prefers independent" in interaction_pref:
+            reasoning_parts.append(f"🎯 **Work Style:** You prefer focused, independent work - recommended majors emphasize analytical roles")
+        elif "Enjoys some" in interaction_pref:
+            reasoning_parts.append(f"⚡ **Work Style:** You enjoy a mix of independent and team work - good balance in this field")
+    
+    # 5. Final Confidence Statement
+    if confidence >= 85:
+        conf_msg = f"🎯 **Confidence:** Very strong match ({confidence}%) - your interests align perfectly with both your grades and work style"
+    elif confidence >= 70:
+        conf_msg = f"💪 **Confidence:** Good match ({confidence}%) - strong alignment of interests and academic strengths"
+    elif confidence >= 50:
+        conf_msg = f"👍 **Confidence:** Moderate match ({confidence}%) - this direction fits your expressed interests"
+    else:
+        conf_msg = f"🤔 **Confidence:** {confidence}% - consider this as one option to explore"
+    
+    reasoning_parts.append(conf_msg)
+    
+    return " | ".join(reasoning_parts)
+
 def analyze_interest_text_semantic(text: str, grades_dict: Dict = None, interaction_score: int = 0, interaction_pref: str = "") -> Tuple[str, float, List[str], str]:
     """
     Enhanced semantic analysis using word similarity and context, with interaction awareness.
@@ -458,22 +543,27 @@ def analyze_interest_text_semantic(text: str, grades_dict: Dict = None, interact
     confidence = min(95, int((score / max_possible_score) * 100))
     confidence = max(50, confidence)  # Minimum 50% confidence
     
-    reasoning = f"Detected interest from keywords: {', '.join(keywords_found[:3])}"
-    
     # Adjust confidence based on grades if provided
     if grades_dict and interest_name == "Technology & Engineering":
-        tech_scores = [grades_dict.get('Physics', 0), grades_dict.get('Mathematics', 0), grades_dict.get('Chemistry', 0)]
+        tech_scores = [grades_dict.get('physics', 0), grades_dict.get('math', 0), grades_dict.get('chemistry', 0)]
         if any(s >= 10 for s in tech_scores):
             confidence = min(99, confidence + 10)
-            reasoning += " + Strong performance in STEM subjects"
     
-    # Adjust confidence based on interaction preference
+    # Adjust confidence based on interaction preference  
     if interaction_score != 0:
-        adjusted_confidence, interaction_reason = adjust_confidence_for_interaction(
+        adjusted_confidence, _ = adjust_confidence_for_interaction(
             confidence, interaction_score, interest_name
         )
         confidence = adjusted_confidence
-        reasoning += f" | {interaction_pref} - {interaction_reason}"
+    
+    # Generate detailed, analytical reasoning
+    reasoning = generate_analytical_reasoning(
+        interest_name, 
+        keywords_found, 
+        grades_dict, 
+        interaction_pref, 
+        confidence
+    )
     
     return interest_name, confidence, keywords_found, reasoning
 
