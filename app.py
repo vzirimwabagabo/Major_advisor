@@ -14,11 +14,45 @@ import os
 import csv
 from io import StringIO
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv not installed - using system env vars
+
 # --- App Configuration ---
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'usiu_africa_secret_key_2024'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
+
+# Load environment-based configuration
+ENV = os.getenv('FLASK_ENV', 'production')
+DEBUG = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+
+# Security configuration
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'usiu_africa_secret_key_2024')
+app.config['SESSION_COOKIE_SECURE'] = not DEBUG  # Only send cool over HTTPS in production
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript from accessing the session cookie
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour session timeout
+
+# Database configuration
+db_uri = os.getenv('DATABASE_URL')
+if not db_uri:
+    # Use SQLite for development/testing
+    instance_path = os.path.join(os.path.dirname(__file__), 'instance')
+    os.makedirs(instance_path, exist_ok=True)
+    db_uri = f'sqlite:///{os.path.join(instance_path, "site.db")}'
+
+# Handle SQLAlchemy 3.x PostgreSQL URI format
+if db_uri and db_uri.startswith('postgres://'):
+    db_uri = db_uri.replace('postgres://', 'postgresql://', 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_recycle': 300,  # Recycle connections every 5 minutes
+    'pool_pre_ping': True,  # Test connections before using them
+}
 
 # --- Initialize Extensions ---
 db = SQLAlchemy(app)
@@ -26,6 +60,25 @@ bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 login_manager.login_message = "Please log in to access the AI Advisor."
+
+# --- Security Headers (Production) ---
+if not DEBUG:
+    try:
+        from flask_talisman import Talisman
+        Talisman(app, 
+                force_https=True,
+                strict_transport_security=True,
+                strict_transport_security_max_age=31536000,
+                content_security_policy={
+                    'default-src': "'self'",
+                    'script-src': "'self' 'unsafe-inline'",  # Allow inline for Flask templates
+                    'style-src': "'self' 'unsafe-inline'",
+                    'img-src': "'self' data:",
+                    'font-src': "'self'",
+                })
+    except ImportError:
+        print("Warning: Flask-Talisman not installed. Security headers disabled.")
+        print("Install it with: pip install Flask-Talisman")
 
 # --- Database Models ---
 class User(db.Model, UserMixin):
@@ -589,4 +642,15 @@ def delete_account():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    
+    # Only use development server if explicitly enabled
+    if DEBUG or ENV == 'development':
+        print(f"Starting Flask development server (debug={DEBUG})")
+        print("WARNING: This is a development server. Do not use it in a production deployment.")
+        print("Use a production WSGI server instead (e.g., gunicorn).")
+        app.run(debug=DEBUG, host='127.0.0.1', port=5000)
+    else:
+        print("ERROR: This should not run directly in production.")
+        print("Use Gunicorn or another WSGI server:")
+        print("  gunicorn wsgi:app")
+        raise RuntimeError("Development app.py entry point should not be used in production")

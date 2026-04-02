@@ -1,31 +1,32 @@
 # Production Requirements
-# Additional packages needed for production deployment
+# Use: pip install -r requirements-prod.txt
 
-# Web Server
+# ===== WSGI Server (Required for Production) =====
 gunicorn==21.2.0
 
-# Database
-psycopg2-binary==2.9.7
+# ===== Core Flask Dependencies =====
+# Included from requirements.txt
+-r requirements.txt
 
-# Environment Variables
+# ===== Environment Configuration =====
 python-dotenv==1.0.0
 
-# Database Migrations (optional)
-Flask-Migrate==4.0.5
+# ===== Production Database Support =====
+psycopg2-binary==2.9.7  # PostgreSQL adapter
 
-# Email (optional)
-Flask-Mail==0.9.1
+# ===== Security Enhancements =====
+Flask-Talisman==1.1.0   # Security headers (HTTPS, CSP, etc.)
 
-# Caching (optional)
-Flask-Caching==2.1.0
+# ===== Error Tracking & Monitoring =====
+sentry-sdk[flask]==1.28.1  # Error reporting
 
-# Monitoring (optional)
-sentry-sdk[flask]==1.28.1
+# ===== Development Tools (for production debugging) =====
+Flask-Migrate==4.0.5    # Database migrations
 
-# Security
-Werkzeug==2.3.7
-bcrypt==4.0.1
-
-# Keep existing requirements
--r requirements.txt</content>
+# ===== Production Web Server Setup Notes =====
+# 1. Use Gunicorn: gunicorn -w 4 -b 0.0.0.0:8000 wsgi:app
+# 2. For Vercel, Heroku, Railway, etc.: They auto-detect and use wsgi:app
+# 3. Consider using a reverse proxy (nginx) in front of Gunicorn
+# 4. Always use HTTPS/SSL in production
+# 5. Never commit .env files with real secrets - use environment variables</content>
 <parameter name="filePath">c:\Users\PC\OneDrive - United States International University (USIU)\Desktop\USIU-NOTES\USIU-NOTES 2026\APT4900\secured site\secured site\requirements-prod.txt
