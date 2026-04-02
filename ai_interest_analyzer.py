@@ -1,0 +1,375 @@
+"""
+Advanced AI Interest Analyzer for Major Recommendation System
+Uses NLP to intelligently understand student interests and map to majors
+
+Features:
+- Natural Language Processing (NLP)
+- Semantic similarity analysis
+- Optional GPT-4 integration for complex cases
+- Confidence scoring
+- Context-aware recommendations
+"""
+
+import os
+from typing import Tuple, List, Dict
+import json
+
+# Optional: AI service integration
+try:
+    from openai import OpenAI
+    HAS_OPENAI = True
+except ImportError:
+    HAS_OPENAI = False
+
+# ==================== INTEREST TO MAJOR MAPPING ====================
+INTEREST_MAJOR_MAP = {
+    "Technology & Engineering": {
+        "majors": [
+            "Applied Computer Technology",
+            "Artificial Intelligence (AI) & Robotics",
+            "Software Engineering",
+            "Cybersecurity",
+            "Data Science & Analytics",
+            "Information Technology"
+        ],
+        "school": "School of Science and Technology",
+        "base_confidence": 85
+    },
+    "Health Sciences": {
+        "majors": [
+            "Nursing",
+            "Public Health",
+            "Pharmaceutical Sciences",
+            "Biomedical Sciences",
+            "Health Management",
+            "Clinical Medicine"
+        ],
+        "school": "School of Health Sciences",
+        "base_confidence": 80
+    },
+    "Business & Commerce": {
+        "majors": [
+            "International Business Administration",
+            "Accounting",
+            "Finance",
+            "Entrepreneurship",
+            "Marketing Management",
+            "Supply Chain Management"
+        ],
+        "school": "Chandaria School of Business",
+        "base_confidence": 75
+    },
+    "Humanities & Social Sciences": {
+        "majors": [
+            "International Relations",
+            "Political Science",
+            "History & Archaeology",
+            "Psychology",
+            "Sociology",
+            "Development Studies"
+        ],
+        "school": "School of Humanities and Social Sciences",
+        "base_confidence": 75
+    },
+    "Creative Arts & Media": {
+        "majors": [
+            "Communication & Media Studies",
+            "Graphic Design & Multimedia",
+            "Film & Digital Production",
+            "Journalism & Broadcasting",
+            "Creative Writing",
+            "Visual Arts"
+        ],
+        "school": "School of Humanities and Social Sciences",
+        "base_confidence": 70
+    }
+}
+
+# ==================== ADVANCED NLP ANALYZER ====================
+
+def semantic_similarity(text1: str, text2: str) -> float:
+    """
+    Calculate semantic similarity between two texts using word overlap.
+    Returns score 0-1.
+    """
+    words1 = set(text1.lower().split())
+    words2 = set(text2.lower().split())
+    
+    if not words1 or not words2:
+        return 0.0
+    
+    intersection = words1.intersection(words2)
+    union = words1.union(words2)
+    
+    # Jaccard similarity
+    return len(intersection) / len(union)
+
+def analyze_interest_with_gpt(interest_text: str) -> Tuple[str, float, List[str]]:
+    """
+    Use GPT-4 to intelligently analyze student interests.
+    Falls back to keyword analysis if API not available.
+    
+    Returns: (interest_category, confidence, reasoning)
+    """
+    if not HAS_OPENAI:
+        return None, 0, []
+    
+    api_key = os.getenv('OPENAI_API_KEY')
+    if not api_key:
+        return None, 0, []
+    
+    try:
+        client = OpenAI(api_key=api_key)
+        
+        prompt = f"""Analyze this student interest statement and determine their best academic path at USIU-Africa.
+
+Interest Statement: "{interest_text}"
+
+Available Paths:
+1. Technology & Engineering - Tech, AI, Software, Data Science, Cybersecurity
+2. Health Sciences - Medicine, Nursing, Health Management, Pharmacy
+3. Business & Commerce - Business Admin, Accounting, Finance, Entrepreneurship
+4. Humanities & Social Sciences - Politics, International Relations, Psychology, History
+5. Creative Arts & Media - Film, Journalism, Design, Communication, Writing
+
+Respond in JSON format:
+{{
+    "category": "one of the 5 paths above",
+    "confidence": 0-100,
+    "reasoning": "brief explanation",
+    "key_interests": ["detected", "interest", "phrases"]
+}}
+"""
+        
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=300
+        )
+        
+        result = json.loads(response.choices[0].message.content)
+        return (
+            result.get("category", ""),
+            result.get("confidence", 0),
+            result.get("key_interests", [])
+        )
+    
+    except Exception as e:
+        print(f"⚠️  GPT Analysis failed: {e}")
+        return None, 0, []
+
+def analyze_interest_text_advanced(interest_text: str, grades_dict: Dict = None) -> Tuple[str, float, List[str], str]:
+    """
+    Advanced interest analysis using multiple techniques.
+    
+    Args:
+        interest_text: Student's interest description
+        grades_dict: Optional grades dict for context
+    
+    Returns:
+        (interest_category, confidence_score, key_interests, reasoning)
+    """
+    if not interest_text or len(interest_text.strip()) < 2:
+        return "Undecided", 0, ["unclear"], "No interest provided"
+    
+    text = interest_text.lower().strip()
+    
+    # Try GPT first if available
+    gpt_category, gpt_confidence, gpt_keywords = analyze_interest_with_gpt(interest_text)
+    if gpt_category and gpt_confidence > 60:
+        reasoning = "Advanced AI analysis (GPT-4)"
+        return gpt_category, gpt_confidence, gpt_keywords, reasoning
+    
+    # Fall back to enhanced semantic analysis
+    return analyze_interest_text_semantic(text, grades_dict)
+
+def analyze_interest_text_semantic(text: str, grades_dict: Dict = None) -> Tuple[str, float, List[str], str]:
+    """
+    Enhanced semantic analysis using word similarity and context.
+    """
+    
+    # Keywords for each interest
+    interest_keywords = {
+        "Technology & Engineering": {
+            "strong": ['technology', 'tech', 'programming', 'coding', 'software', 'ai', 'artificial intelligence', 
+                      'robotics', 'data science', 'cybersecurity', 'algorithm', 'machine learning', 'innovation'],
+            "moderate": ['computer', 'engineering', 'it', 'app', 'web', 'analysis', 'automation', 'digital'],
+            "weak": ['smart', 'electronic', 'online'],
+        },
+        "Health Sciences": {
+            "strong": ['doctor', 'nurse', 'medicine', 'pharmacy', 'healthcare', 'medical', 'surgery', 'patient care',
+                      'healing', 'health', 'hospital', 'treatment', 'disease'],
+            "moderate": ['health', 'biology', 'chemistry', 'anatomy', 'wellness', 'therapy', 'care'],
+            "weak": ['help people', 'helping', 'science'],
+        },
+        "Business & Commerce": {
+            "strong": ['business', 'entrepreneur', 'consulting', 'finance', 'accounting', 'marketing', 'management',
+                      'economics', 'investment', 'leadership', 'strategy'],
+            "moderate": ['corporate', 'sales', 'startup', 'commerce', 'banking', 'trading'],
+            "weak": ['success', 'money', 'profit', 'career'],
+        },
+        "Humanities & Social Sciences": {
+            "strong": ['politics', 'international relations', 'history', 'psychology', 'sociology', 'law', 'policy',
+                      'diplomacy', 'government', 'social', 'politics', 'justice', 'cultural'],
+            "moderate": ['society', 'people', 'community', 'understanding', 'research', 'education', 'development'],
+            "weak": ['helping', 'change', 'impact'],
+        },
+        "Creative Arts & Media": {
+            "strong": ['design', 'film', 'media', 'journalism', 'photography', 'animation', 'writing', 'graphic',
+                      'music', 'acting', 'art', 'creative', 'storytelling', 'broadcast'],
+            "moderate": ['communication', 'content', 'production', 'visual', 'entertainment', 'advertising'],
+            "weak": ['creative', 'expression', 'performance'],
+        }
+    }
+    
+    # Check for undecided
+    undecided_keywords = {'not sure', 'undecided', 'unclear', 'confused', 'don\'t know', 'unsure', 'no idea', 'confused', '?'}
+    if any(kw in text for kw in undecided_keywords):
+        return "Undecided", 20, ["undecided"], "Student indication of uncertainty"
+    
+    # Score each interest
+    scores = {}
+    detected_keywords = {}
+    
+    for interest, keywords_dict in interest_keywords.items():
+        score = 0
+        found_keywords = []
+        
+        # Strong keywords (weight: 3)
+        for kw in keywords_dict["strong"]:
+            if kw in text:
+                score += 3
+                found_keywords.append(kw)
+        
+        # Moderate keywords (weight: 2)
+        for kw in keywords_dict["moderate"]:
+            if kw in text:
+                score += 2
+                found_keywords.append(kw)
+        
+        # Weak keywords (weight: 1)
+        for kw in keywords_dict["weak"]:
+            if kw in text:
+                score += 1
+                found_keywords.append(kw)
+        
+        if found_keywords:
+            scores[interest] = score
+            detected_keywords[interest] = found_keywords[:5]  # Top 5 keywords
+    
+    # Get best match
+    if not scores:
+        return "Undecided", 30, ["unclear_input"], "Could not determine interest from input"
+    
+    best_interest = max(scores.items(), key=lambda x: x[1])
+    interest_name = best_interest[0]
+    score = best_interest[1]
+    keywords_found = detected_keywords.get(interest_name, [])
+    
+    # Calculate confidence (0-100)
+    max_possible_score = 15  # 5 strong keywords
+    confidence = min(95, int((score / max_possible_score) * 100))
+    confidence = max(50, confidence)  # Minimum 50% confidence
+    
+    reasoning = f"Detected interest from keywords: {', '.join(keywords_found[:3])}"
+    
+    # Adjust confidence based on grades if provided
+    if grades_dict and interest_name == "Technology & Engineering":
+        tech_scores = [grades_dict.get('Physics', 0), grades_dict.get('Mathematics', 0), grades_dict.get('Chemistry', 0)]
+        if any(s >= 10 for s in tech_scores):
+            confidence = min(99, confidence + 10)
+            reasoning += " + Strong performance in STEM subjects"
+    
+    return interest_name, confidence, keywords_found, reasoning
+
+def get_major_recommendation(interest_category: str, confidence: float, grades_dict: Dict = None) -> Dict:
+    """
+    Get major recommendation based on interest category and grades.
+    
+    Returns:
+        dict with major, school, and adjusted confidence
+    """
+    if interest_category not in INTEREST_MAJOR_MAP:
+        return {
+            "major": "General Studies",
+            "school": "School of Humanities and Social Sciences",
+            "confidence": 50,
+            "reason": f"Unknown interest category: {interest_category}"
+        }
+    
+    interest_data = INTEREST_MAJOR_MAP[interest_category]
+    major = interest_data["majors"][0]  # Primary recommendation
+    
+    # Adjust confidence based on grades if provided
+    adjusted_confidence = interest_data["base_confidence"]
+    
+    if grades_dict:
+        # Check subject relevance
+        relevant_scores = []
+        if interest_category == "Technology & Engineering":
+            relevant_scores = [grades_dict.get('Physics', 0), grades_dict.get('Mathematics', 0)]
+        elif interest_category == "Health Sciences":
+            relevant_scores = [grades_dict.get('Biology', 0), grades_dict.get('Chemistry', 0)]
+        elif interest_category == "Business & Commerce":
+            relevant_scores = [grades_dict.get('Mathematics', 0), grades_dict.get('Economics', 0)]
+        
+        if relevant_scores:
+            avg_score = sum(relevant_scores) / len(relevant_scores)
+            if avg_score >= 10:
+                adjusted_confidence = min(99, adjusted_confidence + 10)
+            elif avg_score < 5:
+                adjusted_confidence = max(50, adjusted_confidence - 10)
+    
+    # Factor in interest analysis confidence
+    final_confidence = int((adjusted_confidence + confidence) / 2)
+    
+    return {
+        "major": major,
+        "school": interest_data["school"],
+        "confidence": final_confidence,
+        "all_options": interest_data["majors"],
+        "reason": f"Based on {interest_category} interest"
+    }
+
+# ==================== LEGACY COMPATIBILITY ====================
+
+def analyze_interest_text(interest_text):
+    """
+    Legacy function for backward compatibility.
+    Maps to new advanced analyzer.
+    """
+    category, confidence, keywords, reasoning = analyze_interest_text_advanced(interest_text)
+    
+    # Map category names to codes for legacy system
+    category_codes = {
+        "Technology & Engineering": 0,
+        "Health Sciences": 1,
+        "Business & Commerce": 2,
+        "Humanities & Social Sciences": 3,
+        "Creative Arts & Media": 4,
+        "Undecided": -1
+    }
+    
+    code = category_codes.get(category, -1)
+    return code, keywords
+
+if __name__ == "__main__":
+    # Test the analyzer
+    test_interests = [
+        "I love coding and building AI applications",
+        "I want to help people through medicine and healthcare",
+        "I'm passionate about starting my own business",
+        "I'm interested in international politics and diplomacy",
+        "I enjoy creating videos and telling stories through film"
+    ]
+    
+    print("🧠 AI Interest Analyzer Test\n" + "="*50)
+    
+    for interest in test_interests:
+        category, confidence, keywords, reasoning = analyze_interest_text_advanced(interest)
+        print(f"\n📝 Interest: {interest}")
+        print(f"📊 Category: {category}")
+        print(f"💡 Confidence: {confidence}%")
+        print(f"🔑 Keywords: {', '.join(keywords)}")
+        print(f"📌 Reasoning: {reasoning}")

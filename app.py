@@ -7,6 +7,7 @@ from recommendations import (
     MAJOR_TO_SCHOOL, INTEREST_MAP, VALID_GRADES, generate_report,
     parse_grade_input, analyze_interest_text
 )
+from ai_interest_analyzer import analyze_interest_text_advanced, get_major_recommendation
 from model_training import save_recommendation_data, get_recommendation_statistics
 from datetime import datetime
 from sqlalchemy import func, desc
@@ -418,9 +419,24 @@ def predict():
         hum_pt = parse_grade_input(request.form.get('humanities', '').strip())
         tech_pt = parse_grade_input(request.form.get('tech_bus', '').strip()) if request.form.get('tech_bus', '').strip() else 0
         
-        # Analyze natural language interest input
+        # Analyze natural language interest input using AI analyzer
         interest_text = request.form.get('interest', '').strip()
-        interest_code, detected_interests = analyze_interest_text(interest_text)
+        
+        # First try advanced AI analysis
+        ai_category, ai_confidence, ai_keywords, ai_reasoning = analyze_interest_text_advanced(interest_text, scores)
+        
+        # Map AI category to legacy code format for compatibility
+        category_to_code = {
+            "Technology & Engineering": 0,
+            "Health Sciences": 1,
+            "Business & Commerce": 2,
+            "Humanities & Social Sciences": 3,
+            "Creative Arts & Media": 4,
+            "Undecided": -1
+        }
+        
+        interest_code = category_to_code.get(ai_category, -1)
+        detected_interests = ai_keywords
 
         # ===== 2. VALIDATE COMPULSORY SUBJECTS =====
         if math_pt == 0 or eng_pt == 0 or kisw_pt == 0:
