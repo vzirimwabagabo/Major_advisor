@@ -419,6 +419,18 @@ def predict():
         hum_pt = parse_grade_input(request.form.get('humanities', '').strip())
         tech_pt = parse_grade_input(request.form.get('tech_bus', '').strip()) if request.form.get('tech_bus', '').strip() else 0
         
+        # ===== 2. PREPARE SCORES DICTIONARY EARLY (for AI analyzer) =====
+        scores = {
+            'math': math_pt,
+            'english': eng_pt,
+            'kiswahili': kisw_pt,
+            'biology': bio_pt,
+            'physics': phy_pt,
+            'chemistry': chem_pt,
+            'humanities': hum_pt,
+            'tech_business': tech_pt
+        }
+        
         # Analyze natural language interest input using AI analyzer
         interest_text = request.form.get('interest', '').strip()
         
@@ -438,7 +450,7 @@ def predict():
         interest_code = category_to_code.get(ai_category, -1)
         detected_interests = ai_keywords
 
-        # ===== 2. VALIDATE COMPULSORY SUBJECTS =====
+        # ===== 3. VALIDATE COMPULSORY SUBJECTS =====
         if math_pt == 0 or eng_pt == 0 or kisw_pt == 0:
             flash('❌ Group I subjects (Math, English, Kiswahili) are COMPULSORY in KCSE. Please enter valid grades.', 'danger')
             return redirect(url_for('index'))
@@ -446,18 +458,6 @@ def predict():
         if hum_pt == 0:
             flash('❌ Please enter a valid grade for your Humanities subject.', 'danger')
             return redirect(url_for('index'))
-
-        # ===== 3. PREPARE SCORES DICTIONARY =====
-        scores = {
-            'math': math_pt,
-            'english': eng_pt,
-            'kiswahili': kisw_pt,
-            'biology': bio_pt,
-            'physics': phy_pt,
-            'chemistry': chem_pt,
-            'humanities': hum_pt,
-            'tech_business': tech_pt
-        }
 
         # ===== 4. DETERMINE INTEREST AND ELIGIBILITY =====
         if interest_code == -1:  # Undecided/unclear interests
