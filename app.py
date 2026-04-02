@@ -489,12 +489,21 @@ def predict():
         # ===== 6. GET RECOMMENDATION USING RULES =====
         major, explanation, confidence = get_major_by_rules(scores, final_interest_code)
         school = MAJOR_TO_SCHOOL.get(major, "USIU-Africa")
+        
+        # ===== USE AI-GENERATED ANALYTICAL REASONING (conversational analysis) =====
+        # Prioritize the AI analyzer's reasoning which shows grade-interest balance
+        # If alternative recommendation, use guidance message; otherwise use AI reasoning
+        if alternative_msg:
+            final_explanation = alternative_msg
+        else:
+            # Use the new conversational analytical reasoning from AI analyzer
+            final_explanation = ai_reasoning
 
         # ===== 7. SAVE TO DATABASE (History) =====
         new_result = Result(
             major=major,
             school=school,
-            confidence=confidence,
+            confidence=ai_confidence,  # Use AI confidence score
             user_id=current_user.id
         )
         db.session.add(new_result)
@@ -516,7 +525,8 @@ def predict():
             'interest_detected': detected_interests,  # Store detected interests
             'recommended_major': major,
             'school': school,
-            'confidence': confidence,
+            'confidence': ai_confidence,  # Save AI confidence
+            'ai_reasoning': ai_reasoning,  # Save analytical reasoning
             'timestamp': datetime.utcnow().isoformat()
         }
         save_recommendation_data(student_data)
@@ -534,8 +544,8 @@ def predict():
             'Your Interests': f'"{interest_text[:50]}..."' if len(interest_text) > 50 else f'"{interest_text}"'
         }
 
-        # Combine explanations
-        full_explanation = alternative_msg if alternative_msg else explanation
+        # Use AI-generated analytical explanation
+        full_explanation = final_explanation
 
         return render_template('index.html',
                              result=major,
