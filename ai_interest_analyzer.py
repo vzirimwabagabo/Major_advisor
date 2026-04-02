@@ -33,7 +33,8 @@ INTEREST_MAJOR_MAP = {
             "Information Technology"
         ],
         "school": "School of Science and Technology",
-        "base_confidence": 85
+        "base_confidence": 85,
+        "human_interaction": 2  # Low interaction (1=low, 5=high)
     },
     "Health Sciences": {
         "majors": [
@@ -45,7 +46,8 @@ INTEREST_MAJOR_MAP = {
             "Clinical Medicine"
         ],
         "school": "School of Health Sciences",
-        "base_confidence": 80
+        "base_confidence": 80,
+        "human_interaction": 5  # Very high interaction (direct patient care)
     },
     "Business & Commerce": {
         "majors": [
@@ -57,7 +59,8 @@ INTEREST_MAJOR_MAP = {
             "Supply Chain Management"
         ],
         "school": "Chandaria School of Business",
-        "base_confidence": 75
+        "base_confidence": 75,
+        "human_interaction": 4  # High interaction (leadership, client-facing)
     },
     "Humanities & Social Sciences": {
         "majors": [
@@ -69,7 +72,8 @@ INTEREST_MAJOR_MAP = {
             "Development Studies"
         ],
         "school": "School of Humanities and Social Sciences",
-        "base_confidence": 75
+        "base_confidence": 75,
+        "human_interaction": 5  # Very high interaction (people-centered)
     },
     "Creative Arts & Media": {
         "majors": [
@@ -81,11 +85,186 @@ INTEREST_MAJOR_MAP = {
             "Visual Arts"
         ],
         "school": "School of Humanities and Social Sciences",
-        "base_confidence": 70
+        "base_confidence": 70,
+        "human_interaction": 3  # Moderate interaction (audience, collaboration)
     }
 }
 
 # ==================== ADVANCED NLP ANALYZER ====================
+
+def detect_interaction_preference(text: str) -> Tuple[int, str]:
+    """
+    Detect student's preference for human interaction.
+    
+    Returns:
+        (preference_score, preference_type)
+        - preference_score: -2 (avoid people) to +2 (loves people)
+        - preference_type: description of their preference
+    """
+    text = text.lower().strip()
+    
+    # High interaction keywords (people-focused)
+    interaction_high = {
+        'people', 'help', 'helping', 'helping people', 'working with people', 
+        'communication', 'communicate', 'interact', 'interaction', 'connect',
+        'teamwork', 'team', 'collaboration', 'collaborate', 'social', 'community',
+        'leadership', 'lead', 'leading', 'guide', 'mentor', 'coaching',
+        'client', 'customer', 'service', 'leadership', 'persuade',
+        'public speaking', 'presentation', 'counseling', 'advising', 'teaching',
+        'organization', 'organizing people', 'networking', 'relationship',
+        'empathy', 'understand people', 'psychology', 'psychology',
+        'influence', 'inspire', 'motivate', 'support'
+    }
+    
+    # Low interaction keywords (solo/analytical work)
+    interaction_low = {
+        'alone', 'solitary', 'independent', 'solo', 'by myself', 'individual',
+        'data', 'analysis', 'analytical', 'research', 'problem solving',
+        'coding', 'programming', 'technical', 'computer', 'algorithm',
+        'algorithm', 'logical', 'technical skills', 'problem', 'coding',
+        'concentration', 'focused', 'detail', 'precise', 'accurate',
+        'system', 'structure', 'organized', 'logical', 'technical',
+        'debugging', 'configuration', 'automation', 'experiment',
+        'research', 'laboratory', 'analysis', 'theory'
+    }
+    
+    # Avoid people keywords
+    interaction_avoid = {
+        'not good with people', 'avoid people', 'hate people',
+        'people drain me', 'prefer alone', 'introvert', 'shy'
+    }
+    
+    # Count matches
+    high_count = sum(1 for kw in interaction_high if kw in text)
+    low_count = sum(1 for kw in interaction_low if kw in text)
+    avoid_count = sum(1 for kw in interaction_avoid if kw in text)
+    
+    # Calculate preference score
+    if avoid_count > 0:
+        score = -2
+        pref_type = "Strongly prefers working independently"
+    elif low_count > high_count + 1:
+        score = -1
+        pref_type = "Prefers independent/analytical work"
+    elif high_count > low_count + 1:
+        score = 2
+        pref_type = "Very people-oriented, loves interaction"
+    elif high_count > 0:
+        score = 1
+        pref_type = "Enjoys some human interaction"
+    else:
+        score = 0
+        pref_type = "Flexible/no clear preference"
+    
+    return score, pref_type
+
+def adjust_confidence_for_interaction(base_confidence: float, interaction_score: int, category: str) -> Tuple[float, str]:
+    """
+    Adjust confidence based on interaction preference and category alignment.
+    
+    Returns:
+        (adjusted_confidence, adjustment_reason)
+    """
+    category_interaction = INTEREST_MAJOR_MAP.get(category, {}).get("human_interaction", 3)
+    
+    if interaction_score == 0:
+        # No preference stated
+        return base_confidence, "No interaction preference indicated"
+    
+    # Calculate compatibility
+    if interaction_score > 0 and category_interaction >= 4:
+        # Student loves people, category is high interaction
+        adjustment = 10
+        reason = "Strong alignment: You're people-oriented and this field is collaborative"
+    elif interaction_score > 0 and category_interaction <= 2:
+        # Student loves people, category is low interaction
+        adjustment = -5
+        reason = "Consider: This field is more independent than collaborative"
+    elif interaction_score < 0 and category_interaction <= 2:
+        # Student prefers solo work, category is low interaction
+        adjustment = 8
+        reason = "Great fit: This field offers independent work opportunities"
+    elif interaction_score < 0 and category_interaction >= 4:
+        # Student prefers solo work, category is high interaction
+        adjustment = -8
+        reason = "Advisory: This field requires significant people interaction"
+    else:
+        adjustment = 0
+        reason = "Moderate alignment with your interaction preference"
+    
+    final_confidence = max(30, min(99, base_confidence + adjustment))
+    return int(final_confidence), reason
+
+def rank_majors_by_interaction(majors: List[str], category: str, interaction_score: int) -> List[str]:
+    """
+    Re-rank major recommendations based on interaction preference.
+    Moves more compatible majors to the top.
+    """
+    # Define interaction levels for each major
+    major_interaction_levels = {
+        # Technology
+        "Applied Computer Technology": 2,
+        "Artificial Intelligence (AI) & Robotics": 1,
+        "Software Engineering": 2,
+        "Cybersecurity": 1,
+        "Data Science & Analytics": 1,
+        "Information Technology": 2,
+        
+        # Health Sciences
+        "Nursing": 5,
+        "Public Health": 4,
+        "Pharmaceutical Sciences": 2,
+        "Biomedical Sciences": 1,
+        "Health Management": 4,
+        "Clinical Medicine": 5,
+        
+        # Business
+        "International Business Administration": 5,
+        "Accounting": 2,
+        "Finance": 2,
+        "Entrepreneurship": 4,
+        "Marketing Management": 5,
+        "Supply Chain Management": 3,
+        
+        # Humanities & Social Sciences
+        "International Relations": 5,
+        "Political Science": 4,
+        "History & Archaeology": 2,
+        "Psychology": 4,
+        "Sociology": 4,
+        "Development Studies": 5,
+        
+        # Creative Arts & Media
+        "Communication & Media Studies": 5,
+        "Graphic Design & Multimedia": 2,
+        "Film & Digital Production": 3,
+        "Journalism & Broadcasting": 4,
+        "Creative Writing": 1,
+        "Visual Arts": 1,
+    }
+    
+    if interaction_score == 0:
+        return majors  # No change if no preference
+    
+    # Score each major based on interaction alignment
+    scored_majors = []
+    for major in majors:
+        major_interaction = major_interaction_levels.get(major, 3)
+        
+        if interaction_score > 0:
+            # Student likes interaction - score based on interaction level
+            score = major_interaction
+        else:
+            # Student prefers solo work - inverse score
+            score = 6 - major_interaction
+        
+        scored_majors.append((major, score))
+    
+    # Sort by score (descending)
+    scored_majors.sort(key=lambda x: x[1], reverse=True)
+    ranked_majors = [major for major, score in scored_majors]
+    
+    return ranked_majors
 
 def semantic_similarity(text1: str, text2: str) -> float:
     """
@@ -175,18 +354,25 @@ def analyze_interest_text_advanced(interest_text: str, grades_dict: Dict = None)
     
     text = interest_text.lower().strip()
     
+    # Detect interaction preference from the text
+    interaction_score, interaction_pref = detect_interaction_preference(text)
+    
     # Try GPT first if available
     gpt_category, gpt_confidence, gpt_keywords = analyze_interest_with_gpt(interest_text)
     if gpt_category and gpt_confidence > 60:
-        reasoning = "Advanced AI analysis (GPT-4)"
-        return gpt_category, gpt_confidence, gpt_keywords, reasoning
+        reasoning = f"Advanced AI analysis (GPT-4) - {interaction_pref}"
+        # Adjust for interaction preference
+        final_confidence, interaction_reason = adjust_confidence_for_interaction(
+            gpt_confidence, interaction_score, gpt_category
+        )
+        return gpt_category, final_confidence, gpt_keywords, reasoning + f" | {interaction_reason}"
     
-    # Fall back to enhanced semantic analysis
-    return analyze_interest_text_semantic(text, grades_dict)
+    # Fall back to enhanced semantic analysis with interaction awareness
+    return analyze_interest_text_semantic(text, grades_dict, interaction_score, interaction_pref)
 
-def analyze_interest_text_semantic(text: str, grades_dict: Dict = None) -> Tuple[str, float, List[str], str]:
+def analyze_interest_text_semantic(text: str, grades_dict: Dict = None, interaction_score: int = 0, interaction_pref: str = "") -> Tuple[str, float, List[str], str]:
     """
-    Enhanced semantic analysis using word similarity and context.
+    Enhanced semantic analysis using word similarity and context, with interaction awareness.
     """
     
     # Keywords for each interest
@@ -281,11 +467,19 @@ def analyze_interest_text_semantic(text: str, grades_dict: Dict = None) -> Tuple
             confidence = min(99, confidence + 10)
             reasoning += " + Strong performance in STEM subjects"
     
+    # Adjust confidence based on interaction preference
+    if interaction_score != 0:
+        adjusted_confidence, interaction_reason = adjust_confidence_for_interaction(
+            confidence, interaction_score, interest_name
+        )
+        confidence = adjusted_confidence
+        reasoning += f" | {interaction_pref} - {interaction_reason}"
+    
     return interest_name, confidence, keywords_found, reasoning
 
-def get_major_recommendation(interest_category: str, confidence: float, grades_dict: Dict = None) -> Dict:
+def get_major_recommendation(interest_category: str, confidence: float, grades_dict: Dict = None, interaction_score: int = 0) -> Dict:
     """
-    Get major recommendation based on interest category and grades.
+    Get major recommendation based on interest category, grades, and interaction preference.
     
     Returns:
         dict with major, school, and adjusted confidence
@@ -299,7 +493,14 @@ def get_major_recommendation(interest_category: str, confidence: float, grades_d
         }
     
     interest_data = INTEREST_MAJOR_MAP[interest_category]
-    major = interest_data["majors"][0]  # Primary recommendation
+    
+    # Rank majors based on interaction preference
+    ranked_majors = rank_majors_by_interaction(
+        interest_data["majors"], 
+        interest_category, 
+        interaction_score
+    )
+    major = ranked_majors[0]  # Best recommendation based on interaction + category
     
     # Adjust confidence based on grades if provided
     adjusted_confidence = interest_data["base_confidence"]
@@ -328,8 +529,8 @@ def get_major_recommendation(interest_category: str, confidence: float, grades_d
         "major": major,
         "school": interest_data["school"],
         "confidence": final_confidence,
-        "all_options": interest_data["majors"],
-        "reason": f"Based on {interest_category} interest"
+        "all_options": ranked_majors,  # Now ranked by interaction preference
+        "reason": f"Based on {interest_category} interest with personalized ranking"
     }
 
 # ==================== LEGACY COMPATIBILITY ====================
