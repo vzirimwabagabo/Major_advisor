@@ -316,13 +316,19 @@ def determine_best_fit(scores):
     hum = scores.get('humanities', 0)
     tech = scores.get('tech_business', 0)
     
+    def _avg(values):
+        """Average only subjects that were actually taken (score > 0)."""
+        taken = [v for v in values if v > 0]
+        return sum(taken) / len(taken) if taken else 0
+
     field_scores = {
-        'Technology & Engineering': (math + phy + tech) / 3 if (math + phy + tech) > 0 else 0,
-        'Health Sciences': (bio + chem + math) / 3 if (bio + chem + math) > 0 else 0,
-        'Business & Commerce': (math + tech + eng) / 3 if (math + tech + eng) > 0 else 0,
-        'Humanities & Social Sciences': (eng + kisw + hum) / 3 if (eng + kisw + hum) > 0 else 0,
-        'Creative Arts & Media': (eng + tech + hum) / 3 if (eng + tech + hum) > 0 else 0
+        'Technology & Engineering':    _avg([math, phy, tech]),
+        'Health Sciences':             _avg([bio, chem, math]),
+        'Business & Commerce':         _avg([math, tech, eng]),
+        'Humanities & Social Sciences': _avg([eng, kisw, hum]),
+        'Creative Arts & Media':       _avg([eng, tech, hum])
     }
+
     
     best_field = max(field_scores, key=field_scores.get)
     best_code = INTEREST_MAP.get(best_field, 0)

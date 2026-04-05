@@ -473,18 +473,16 @@ def predict():
             is_eligible, guidance_msg = check_eligibility(interest_code, scores)
             undecided_mode = False
             alternative_msg = ""
+            final_interest_code = interest_code
 
         # ===== 5. PIVOT LOGIC: If not eligible, find best alternative =====
-        final_interest_code = interest_code
-        if not is_eligible:
             # Student doesn't meet requirements for their choice
             # Find what they're best suited for instead
             interest_code_alt, best_fit_area, _ = determine_best_fit(scores)
             final_interest_code = interest_code_alt
-            alternative_msg = (f"<strong>Guidance Note:</strong> {guidance_msg}<br><br>"
-                              f"<strong>Don't be discouraged!</strong> Everyone has different strengths. "
-                              f"Based on your actual scores, you show excellent potential in "
-                              f"<strong>{best_fit_area}</strong>. This path offers fantastic opportunities!")
+            alternative_msg = (f"<strong>Advisor Note:</strong> {guidance_msg}<br><br>"
+                              f"While your initial preference was different, your academic profile shows a truly exceptional aptitude for "
+                              f"<strong>{best_fit_area}</strong>. We believe you would thrive in this field based on your current subject strengths!")
 
         # ===== 6. GET RECOMMENDATION USING RULES =====
         major, explanation, confidence = get_major_by_rules(scores, final_interest_code)
