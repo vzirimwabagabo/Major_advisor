@@ -1,0 +1,8 @@
+{
+    "site_root": [".venv/Lib/site-packages"],
+    "source_directories": ["."],
+    "search_path": [".venv/Lib/site-packages"],
+    "exclude_search_path_directories": [],
+    "ignore_all_errors": false,
+    "logger": {}
+}

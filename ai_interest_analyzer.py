@@ -191,7 +191,7 @@ def rank_majors_by_interaction(majors: List[str], category: str, interaction_sco
 
 # ==================== GEMINI AI ANALYSIS (Modern SDK) ====================
 
-def analyze_interest_with_gemini(interest_text: str, scores: Dict = None) -> Tuple[str, float, List[str], str]:
+def analyze_interest_with_gemini(interest_text: str, scores: Dict = None) -> Tuple[str | None, float, List[str], str]:
     """Use Gemini AI to analyze interests and recommend a field."""
     if not HAS_GEMINI: return None, 0, [], ""
     api_key = os.getenv('GEMINI_API_KEY')

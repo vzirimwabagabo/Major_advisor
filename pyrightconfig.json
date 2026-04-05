@@ -1,0 +1,17 @@
+{
+    "venvPath": ".",
+    "venv": ".venv",
+    "pythonVersion": "3.13",
+    "pythonPlatform": "Windows",
+    "typeCheckingMode": "basic",
+    "useLibraryCodeForTypes": true,
+    "reportMissingImports": "none",
+    "reportMissingModuleSource": "none",
+    "include": [
+        "."
+    ],
+    "exclude": [
+        ".venv",
+        "__pycache__"
+    ]
+}
