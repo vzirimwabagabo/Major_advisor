@@ -37,7 +37,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour session timeout
 
 # Database configuration
-db_uri = os.getenv('DATABASE_URL')
+db_uri = os.getenv('DATABASE_URL') or os.getenv('POSTGRES_URL')
 if not db_uri:
     # Use SQLite for development/testing
     instance_path = os.path.join(os.path.dirname(__file__), 'instance')
