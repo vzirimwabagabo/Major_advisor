@@ -17,6 +17,10 @@ from app import app, db
 # Ensure we're in production mode
 os.environ.setdefault('FLASK_ENV', 'production')
 
+# Create database tables on startup if they don't exist
+with app.app_context():
+    db.create_all()
+
 if __name__ == '__main__':
     # This should not be called directly - WSGI servers will call app directly
     print("ERROR: Do not run wsgi.py directly!")
