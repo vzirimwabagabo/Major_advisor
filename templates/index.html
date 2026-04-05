@@ -19,6 +19,22 @@
         .header-info a { color: #8B0000; font-weight: bold; text-decoration: none; font-size: 0.9em; margin-left: 10px; }
         .header-info a:hover { text-decoration: underline; }
 
+        /* --- Responsiveness Media Queries --- */
+        @media (max-width: 768px) {
+            .container { margin: 10px; padding: 15px; }
+            .header { flex-direction: column; text-align: center; }
+            .header-info { text-align: center; margin-top: 15px; }
+            .header-info a { margin: 0 5px; }
+            .form-grid { grid-template-columns: 1fr; }
+            .summary-grid { grid-template-columns: repeat(2, 1fr); }
+            .result-major { font-size: 1.4em; }
+        }
+        
+        @media (max-width: 480px) {
+            .summary-grid { grid-template-columns: 1fr; }
+            .header h1 { font-size: 1.3em; }
+        }
+
         /* --- Alert / Flash Messages --- */
         .alert { padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 0.9em; }
         .danger { background-color: #ffebee; color: #c62828; border-left: 5px solid #f44336; }

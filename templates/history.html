@@ -14,6 +14,13 @@
         .btn-back { display: inline-block; margin-top: 20px; background-color: #8B0000; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; }
         .badge { padding: 5px 10px; border-radius: 4px; font-size: 0.8em; color: white; }
         .badge-soft { background-color: #4caf50; }
+        
+        /* --- Responsiveness --- */
+        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        @media (max-width: 600px) {
+            .container { padding: 15px; }
+            th, td { padding: 8px; font-size: 0.85em; }
+        }
     </style>
 </head>
 <body>
@@ -23,6 +30,7 @@
     <p>Below is a record of your previous AI recommendations.</p>
 
     {% if results %}
+    <div class="table-responsive">
         <table>
             <thead>
                 <tr>
@@ -43,6 +51,7 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
     {% else %}
         <p>No history found. <a href="{{ url_for('index') }}">Make your first recommendation</a>.</p>
     {% endif %}
