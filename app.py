@@ -88,7 +88,7 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(60), nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
-    results = db.relationship('Result', backref='author', lazy=True)
+    results = db.relationship('Result', backref='author', lazy=True, cascade='all, delete-orphan')
 
     def set_password(self, password):
         self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
@@ -258,15 +258,19 @@ def admin_delete_user(user_id):
         flash('❌ Cannot delete your own account.', 'danger')
         return redirect(url_for('admin'))
     
-    user = User.query.get_or_404(user_id)
-    username = user.username
-    
-    # Delete all recommendations for this user
-    Result.query.filter_by(user_id=user_id).delete()
-    db.session.delete(user)
-    db.session.commit()
-    
-    flash(f'✓ User {username} and all their data have been deleted.', 'success')
+    try:
+        user = User.query.get_or_404(user_id)
+        username = user.username
+        
+        # Rely on database cascade to delete recommendations
+        db.session.delete(user)
+        db.session.commit()
+        
+        flash(f'✓ User {username} and all their data have been deleted.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'❌ Error deleting user: {str(e)}', 'danger')
+        
     return redirect(url_for('admin'))
 
 @app.route('/admin/analytics')
@@ -641,16 +645,15 @@ def delete_account():
             user_id = current_user.id
             username = current_user.username
 
-            # Delete all user's recommendations first (due to foreign key constraint)
-            Result.query.filter_by(user_id=user_id).delete()
-
-            # Delete the user
+            # Get the user object
             user = User.query.get(user_id)
+            
+            # Log out the user first so the session is cleared
+            logout_user()
+
+            # Delete the user (cascade handles Results)
             db.session.delete(user)
             db.session.commit()
-
-            # Log out the user
-            logout_user()
 
             flash(f'Account "{username}" has been permanently deleted.', 'info')
             return redirect(url_for('login'))
