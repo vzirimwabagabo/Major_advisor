@@ -342,9 +342,7 @@
                                         <a href="{{ url_for('toggle_admin', user_id=user.id) }}" class="btn {% if user.is_admin %}btn-warning{% else %}btn-primary{% endif %}">
                                             {% if user.is_admin %}Remove Admin{% else %}Make Admin{% endif %}
                                         </a>
-                                        <form method="POST" action="{{ url_for('admin_delete_user', user_id=user.id) }}" style="display: inline;" onsubmit="return confirm('Delete user and all their data? This cannot be undone.');">
-                                            <button type="submit" class="btn btn-danger">Delete</button>
-                                        </form>
+                                        <a href="{{ url_for('admin_delete_user', user_id=user.id) }}" class="btn btn-danger">Delete</a>
                                     {% endif %}
                                 </td>
                             </tr>

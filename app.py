@@ -246,7 +246,7 @@ def admin_user_history(user_id):
     
     return render_template('admin_user_history.html', user=user, results=results)
 
-@app.route('/admin/delete-user/<int:user_id>', methods=['POST'])
+@app.route('/admin/delete-user/<int:user_id>', methods=['GET', 'POST'])
 @login_required
 def admin_delete_user(user_id):
     """Delete a user and all their recommendations."""
@@ -258,20 +258,27 @@ def admin_delete_user(user_id):
         flash('❌ Cannot delete your own account.', 'danger')
         return redirect(url_for('admin'))
     
-    try:
-        user = User.query.get_or_404(user_id)
-        username = user.username
+    # Use modern db.session.get for clean lookup
+    user = db.session.get(User, user_id)
+    if not user:
+        flash('❌ User not found.', 'danger')
+        return redirect(url_for('admin'))
         
-        # Rely on database cascade to delete recommendations
-        db.session.delete(user)
-        db.session.commit()
-        
-        flash(f'✓ User {username} and all their data have been deleted.', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'❌ Error deleting user: {str(e)}', 'danger')
-        
-    return redirect(url_for('admin'))
+    if request.method == 'POST':
+        try:
+            username = user.username
+            # Rely on database cascade to delete recommendations
+            db.session.delete(user)
+            db.session.commit()
+            flash(f'✓ User {username} and all their data have been deleted.', 'success')
+            return redirect(url_for('admin'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'❌ Error deleting user: {str(e)}', 'danger')
+            return redirect(url_for('admin'))
+    
+    # GET request - show confirmation page
+    return render_template('admin_confirm_delete_user.html', user=user)
 
 @app.route('/admin/analytics')
 @login_required
