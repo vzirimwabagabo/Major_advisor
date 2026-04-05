@@ -36,24 +36,38 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript from accessin
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour session timeout
 
-# Database configuration
+# --- Database Configuration & URI Cleaning ---
 db_uri = os.getenv('DATABASE_URL') or os.getenv('POSTGRES_URL')
+
+if db_uri:
+    # 1. Standardize protocol for SQLAlchemy 2.0+
+    if db_uri.startswith('postgres://'):
+        db_uri = db_uri.replace('postgres://', 'postgresql://', 1)
+    
+    # 2. Clean 'supa' and other invalid parameters added by Vercel-Supabase integration
+    if '?' in db_uri:
+        # Strip query parameters that cause "invalid connection option" errors in psycopg2
+        db_uri = db_uri.split('?')[0]
+        # Always use SSL for production database connections
+        db_uri += "?sslmode=require"
+
 if not db_uri:
     # Use SQLite for development/testing
     instance_path = os.path.join(os.path.dirname(__file__), 'instance')
     os.makedirs(instance_path, exist_ok=True)
     db_uri = f'sqlite:///{os.path.join(instance_path, "site.db")}'
 
-# Handle SQLAlchemy 3.x PostgreSQL URI format
-if db_uri and db_uri.startswith('postgres://'):
-    db_uri = db_uri.replace('postgres://', 'postgresql://', 1)
-
 app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_recycle': 300,  # Recycle connections every 5 minutes
-    'pool_pre_ping': True,  # Test connections before using them
-}
+
+# Optimized for serverless (Vercel)
+if ENV == 'production' or not DEBUG:
+    from sqlalchemy.pool import NullPool
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_recycle': 300,
+        'pool_pre_ping': True,
+        'poolclass': NullPool,
+    }
 
 # --- Initialize Extensions ---
 db = SQLAlchemy(app)
