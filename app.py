@@ -510,7 +510,7 @@ def predict():
                               f"<strong>{best_fit_area}</strong>. We believe you would thrive in this field based on your current subject strengths!")
 
         # ===== 6. GET RECOMMENDATION USING RULES =====
-        major, explanation, confidence = get_major_by_rules(scores, final_interest_code)
+        major, explanation, confidence = get_major_by_rules(scores, final_interest_code, interest_text)
         school = MAJOR_TO_SCHOOL.get(major, "USIU-Africa")
         
         # ===== USE AI-GENERATED ANALYTICAL REASONING (conversational analysis) =====

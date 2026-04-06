@@ -206,7 +206,12 @@ def analyze_interest_with_gemini(interest_text: str, scores: Dict = None) -> Tup
             grade_context = f"\nStudent Grades: {', '.join(grade_lines)}"
 
         prompt = f"""You are a professional Academic Advisor at USIU-Africa. 
-Analysis Task: Based on the student's interests and grades below, recommend one of these fields: 
+Analysis Task: Recommend the MOST relevant field based on the student's INTEREST STATEMENT. 
+While you should check their grades for feasibility, you must PRIORITIZE their career goals and stated interests.
+
+Example: If a student says "I want to be a manager", recommend "Business & Commerce" even if their Science/Math grades are high.
+
+Fields to choose from: 
 Technology & Engineering, Health Sciences, Business & Commerce, Humanities & Social Sciences, Creative Arts & Media.
 
 {grade_context}
@@ -216,7 +221,7 @@ Return ONLY JSON with these exact keys:
 {{
   "category": "exact field name",
   "confidence": 70-95,
-  "reasoning": "A warm, professional 2-3 sentence explanation in fluent English. Connect their specific grades to their interests and explain why this USIU-Africa field is a great fit. Be encouraging!",
+  "reasoning": "A warm, professional 2-3 sentence explanation. Explicitly mention how their specified interest led to this category, and then how their grades support it.",
   "key_interests": ["3-4 relevant keywords"]
 }}"""
 

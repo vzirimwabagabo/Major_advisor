@@ -140,7 +140,7 @@ INTEREST_MAP = {
 
 # ==================== RECOMMENDATION LOGIC ====================
 
-def get_major_by_rules(scores, interest_code):
+def get_major_by_rules(scores, interest_code, interest_text=""):
     """
     Recommend a major based on KCSE scores and interest.
     Aligns with USIU admission criteria and student strengths.
@@ -149,6 +149,7 @@ def get_major_by_rules(scores, interest_code):
         scores: dict with 'math', 'english', 'kiswahili', 'biology', 'physics', 
                 'chemistry', 'humanities', 'tech_business' (all as points 0-12)
         interest_code: int (0-4) representing interest area
+        interest_text: str representing student's actual interests (for nudging)
     
     Returns:
         tuple: (major_name, explanation, confidence_level)
@@ -164,36 +165,41 @@ def get_major_by_rules(scores, interest_code):
     
     # ===== SCHOOL OF SCIENCE AND TECHNOLOGY (Interest 0) =====
     if interest_code == 0:
-        # High Math & Physics -> AI/Robotics
-        if math >= 11 and phy >= 11:
+        # Detect sub-interests for more nuanced recommendation
+        it_keywords = ['system', 'support', 'it', 'network', 'database', 'infrastructure']
+        ai_keywords = ['ai', 'robot', 'intelligence', 'automation', 'future']
+        data_keywords = ['data', 'analytics', 'statistic', 'insight']
+        
+        # Interest-based nudging (even with high grades)
+        text_lower = interest_text.lower()
+        is_it = any(kw in text_lower for kw in it_keywords)
+        is_ai = any(kw in text_lower for kw in ai_keywords)
+        is_data = any(kw in text_lower for kw in data_keywords)
+
+        # High Math & Physics -> AI/Robotics (Only if interest matches or no specific tech interest)
+        if math >= 11 and phy >= 11 and (is_ai or not (is_it or is_data)):
             return ('Artificial Intelligence (AI) & Robotics', 
                    f"Outstanding STEM foundation (Math: {math}pts, Physics: {phy}pts). "
-                   f"You have the analytical skills for advanced technology roles.",
+                   f"Your strengths perfectly align with the complex requirements of AI and Robotics.",
                    95)
-        # High Math & Physics -> Software Engineering
-        elif math >= 10 and phy >= 10:
+        # Software Engineering (Strong all-rounder tech)
+        elif math >= 10:
             return ('Software Engineering',
-                   f"Strong Math ({math}pts) and Physics ({phy}pts) skills indicate excellent "
-                   f"programming and system design potential.",
+                   f"Strong Science/Math foundation. Your analytical profile is ideal for "
+                   f"system design and high-level software development.",
                    90)
         # Data Science path
-        elif math >= 9 and tech >= 8:
+        elif math >= 9 and (is_data or tech >= 8):
             return ('Data Science and Analytics',
-                   f"Your Math strength ({math}pts) combined with technical knowledge "
-                   f"positions you well for data-driven roles.",
+                   f"Your Math strength ({math}pts) combined with analytical interests "
+                   f"positions you well for data-driven strategic roles.",
                    85)
-        # Applied Tech
-        elif math >= 8 and tech >= 8:
-            return ('Applied Computer Technology',
-                   f"Solid technical foundation ({math}pts Math, {tech}pts Tech). "
-                   f"Perfect for hands-on technology applications.",
-                   80)
         # Default for tech interest
         else:
-            return ('Information Systems & Technology',
-                   f"Your interest in technology combined with available scores "
-                   f"suggests IT systems management as a practical fit.",
-                   70)
+            return ('Applied Computer Technology',
+                   f"Your academic profile and interest in technology suggest a "
+                   f"versatile career in Applied Technology.",
+                   80)
     
     # ===== SCHOOL OF PHARMACY AND HEALTH SCIENCES (Interest 1) =====
     elif interest_code == 1:
