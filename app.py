@@ -488,35 +488,34 @@ def predict():
             return redirect(url_for('index'))
 
         # ===== 4. DETERMINE INTEREST AND ELIGIBILITY =====
-        if interest_code == -1:  # Undecided/unclear interests
-            interest_code_alt, best_fit, field_scores = determine_best_fit(scores)
-            final_interest_code = interest_code_alt
-            is_eligible = True
-            guidance_msg = ""
-            alternative_msg = f"Based on your description, we analyzed your interests and academic strengths. Your best fit appears to be in <strong>{best_fit}</strong>."
-        else:
-            final_interest_code = interest_code
-            is_eligible, guidance_msg = check_eligibility(interest_code, scores)
-            alternative_msg = ""
-
-        # ===== 5. PIVOT LOGIC: If not eligible, find best alternative =====
-        if not is_eligible:
-            interest_code_alt, best_fit_area, _ = determine_best_fit(scores)
-            final_interest_code = interest_code_alt
-            alternative_msg = (f"<strong>Advisor Note:</strong> {guidance_msg}<br><br>"
-                              f"While your interest in {ai_category} is great, your current grades perfectly match the requirements for "
-                              f"<strong>{best_fit_area}</strong>. We suggest exploring this path as it aligns with your academic strengths!")
-
-        # ===== 6. GET RECOMMENDATION USING RULES (Safety Validator) =====
-        rule_major, rule_explanation, rule_confidence = get_major_by_rules(scores, final_interest_code, interest_text)
+        # The AI (ai_category) is our source of truth for the student's goal.
+        # The Rule Engine (best_fit_area) is our "Safety Validator" for academics.
+        _, best_fit_area, _ = determine_best_fit(scores)
         
-        # FINAL DECISION: If AI suggested a specific major and it's in the right field, use it!
-        # Otherwise fallback to the rule-based recommendation.
-        major = ai_major if (ai_major and not alternative_msg) else rule_major
-        school = MAJOR_TO_SCHOOL.get(major, "USIU-Africa")
+        # Check eligibility for the AI-suggested field
+        # Note: ai_category_code maps the AI string back to the rule-engine integer
+        ai_category_code = category_to_code.get(ai_category, -1)
+        is_eligible, eligibility_note = check_eligibility(ai_category_code, scores)
+
+        # ===== 5. FINAL RECOMMENDATION CONSTRUCTION =====
+        # Use AI's suggested major if it exists, otherwise use Rule Engine's best fit
+        final_major = ai_major if ai_major else get_major_by_rules(scores, ai_category_code, interest_text)[0]
+        final_school = MAJOR_TO_SCHOOL.get(final_major, "USIU-Africa")
         
-        # USE AI-GENERATED ANALYTICAL REASONING
-        final_explanation = alternative_msg if alternative_msg else ai_reasoning
+        # Final Reasoning Strategy:
+        # 1. Use the AI reasoning (which includes the student's name and personalized advice).
+        # 2. IF NOT ELIGIBLE: Append a polite "Safety Note" explaining why and suggesting the rule-fit.
+        final_explanation = ai_reasoning
+        
+        if not is_eligible and eligibility_note:
+            final_explanation += f"<br><br><strong>⚠️ Safety Validator Note:</strong> {eligibility_note} "
+            final_explanation += f"While you pursue your passion, we also recommend checking out <strong>{best_fit_area}</strong> as a guaranteed match for your current grades."
+
+        # Pass to template
+        result = final_major
+        school = final_school
+        explanation = final_explanation
+        confidence = ai_confidence
 
         # ===== 7. SAVE TO DATABASE (History) =====
         new_result = Result(
