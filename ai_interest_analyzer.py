@@ -191,7 +191,7 @@ def rank_majors_by_interaction(majors: List[str], category: str, interaction_sco
 
 # ==================== GEMINI AI ANALYSIS (Modern SDK) ====================
 
-def analyze_interest_with_gemini(interest_text: str, scores: Dict = None) -> Tuple[str | None, float, List[str], str, str]:
+def analyze_interest_with_gemini(interest_text: str, scores: Dict = None, username: str = "Student") -> Tuple[str | None, float, List[str], str, str]:
     """Use Gemini AI to analyze interests and recommend a field."""
     if not HAS_GEMINI: return None, 0, [], "", ""
     api_key = os.getenv('GEMINI_API_KEY')
@@ -220,11 +220,12 @@ Majors and Schools at USIU-Africa:
 {majors_text}
 
 Rules:
-1. PRIORITIZE career goals over grades. If they say "manager", favor Business majors even if their Science grades are elite.
-2. If a student has elite grades (mostly As), acknowledge that they are capable of any field, but you are selecting based on their specific passion.
-3. Provide a UNIQUE, warm, and professional explanation (2-3 sentences). 
-4. Explicitly reference specific words from the student's interest statement in your reasoning.
-4. Your response must be in English.
+1. PERSONALIZATION: Start your message with "Hi {username}, ..." 
+2. UNIQUE MESSAGE: Do NOT repeat the same phrases. Every advisory message must be unique and feel like a real conversation.
+3. ADVICE: PRIORITIZE career goals over grades. If they say "manager", favor Business majors even if their Science grades are elite.
+4. ACKNOWLEDGEMENT: If a student has elite grades (mostly As), acknowledge that they are capable of any field, but you are selecting based on their specific passion.
+5. EVIDENCE: Explicitly reference specific words from the student's interest statement in your reasoning.
+6. Your response must be in English.
 
 {grade_context}
 Interest Statement: "{interest_text}"
@@ -303,12 +304,12 @@ def generate_analytical_reasoning(category, keywords, grades, interaction, confi
     return " | ".join(parts)
 
 
-def analyze_interest_text_advanced(interest_text: str, grades_dict: Dict = None) -> Tuple[str, float, List[str], str, str]:
+def analyze_interest_text_advanced(interest_text: str, grades_dict: Dict = None, username: str = "Student") -> Tuple[str, float, List[str], str, str]:
     """Main entry point: Attempts Gemini analysis, falls back to keywords."""
     interaction_score, interaction_pref = detect_interaction_preference(interest_text)
     
     # 1. Gemini AI (Primary)
-    cat, conf, kws, reason, major = analyze_interest_with_gemini(interest_text, grades_dict)
+    cat, conf, kws, reason, major = analyze_interest_with_gemini(interest_text, grades_dict, username)
     if cat:
         conf, note = adjust_confidence_for_interaction(conf, interaction_score, cat)
         final_statement = f"{reason} Furthermore, {note.lower()}." if note and "no interaction" not in note.lower() else reason

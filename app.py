@@ -463,7 +463,7 @@ def predict():
         # Analyze natural language interest input using AI analyzer
         interest_text = request.form.get('interest', '').strip()
         # First try advanced AI analysis (returns Category, Conf, Keywords, Reasoning, Major)
-        ai_category, ai_confidence, ai_keywords, ai_reasoning, ai_major = analyze_interest_text_advanced(interest_text, scores)
+        ai_category, ai_confidence, ai_keywords, ai_reasoning, ai_major = analyze_interest_text_advanced(interest_text, scores, current_user.username)
         
         # Map AI category to legacy code format for compatibility
         category_to_code = {
