@@ -191,11 +191,11 @@ def rank_majors_by_interaction(majors: List[str], category: str, interaction_sco
 
 # ==================== GEMINI AI ANALYSIS (Modern SDK) ====================
 
-def analyze_interest_with_gemini(interest_text: str, scores: Dict = None) -> Tuple[str | None, float, List[str], str]:
+def analyze_interest_with_gemini(interest_text: str, scores: Dict = None) -> Tuple[str | None, float, List[str], str, str]:
     """Use Gemini AI to analyze interests and recommend a field."""
-    if not HAS_GEMINI: return None, 0, [], ""
+    if not HAS_GEMINI: return None, 0, [], "", ""
     api_key = os.getenv('GEMINI_API_KEY')
-    if not api_key: return None, 0, [], ""
+    if not api_key: return None, 0, [], "", ""
 
     try:
         client = genai.Client(api_key=api_key)
@@ -205,24 +205,36 @@ def analyze_interest_with_gemini(interest_text: str, scores: Dict = None) -> Tup
             grade_lines = [f"{k}: {grade_map.get(v, v)}" for k, v in scores.items() if v > 0]
             grade_context = f"\nStudent Grades: {', '.join(grade_lines)}"
 
+        # Prepare major list for Gemini
+        major_list = []
+        for cat, data in INTEREST_MAJOR_MAP.items():
+            for m in data['majors']:
+                major_list.append(f"- {m} ({data['school']})")
+        
+        majors_text = "\n".join(major_list)
+
         prompt = f"""You are a professional Academic Advisor at USIU-Africa. 
-Analysis Task: Recommend the MOST relevant field based on the student's INTEREST STATEMENT. 
-While you should check their grades for feasibility, you must PRIORITIZE their career goals and stated interests.
+Analysis Task: Recommend the MOST relevant MAJOR from the list below based on the student's INTEREST STATEMENT. 
 
-Example: If a student says "I want to be a manager", recommend "Business & Commerce" even if their Science/Math grades are high.
+Majors and Schools at USIU-Africa:
+{majors_text}
 
-Fields to choose from: 
-Technology & Engineering, Health Sciences, Business & Commerce, Humanities & Social Sciences, Creative Arts & Media.
+Rules:
+1. PRIORITIZE career goals over grades. If they say "manager", favor Business majors.
+2. Provide a UNIQUE, warm, and professional explanation (2-3 sentences). 
+3. Explicitly reference specific words from the student's interest statement in your reasoning.
+4. Your response must be in English.
 
 {grade_context}
 Interest Statement: "{interest_text}"
 
 Return ONLY JSON with these exact keys:
 {{
-  "category": "exact field name",
+  "category": "One of: Technology & Engineering, Health Sciences, Business & Commerce, Humanities & Social Sciences, Creative Arts & Media",
+  "recommended_major": "The specific major name from the list provided",
   "confidence": 70-95,
-  "reasoning": "A warm, professional 2-3 sentence explanation. Explicitly mention how their specified interest led to this category, and then how their grades support it.",
-  "key_interests": ["3-4 relevant keywords"]
+  "reasoning": "A unique, personalized explanation connecting their interests and grades.",
+  "key_interests": ["3-4 relevant keywords from their text"]
 }}"""
 
         response = client.models.generate_content(
@@ -239,12 +251,12 @@ Return ONLY JSON with these exact keys:
         if category not in valid:
             for v in valid:
                 if v.lower() in category.lower(): category = v; break
-            else: return None, 0, [], ""
+            else: return None, 0, [], "", ""
 
-        return category, float(result.get("confidence", 70)), result.get("key_interests", []), result.get("reasoning", "")
+        return category, float(result.get("confidence", 70)), result.get("key_interests", []), result.get("reasoning", ""), result.get("recommended_major", "")
     except Exception as e:
         print(f"Gemini error: {e}")
-        return None, 0, [], ""
+        return None, 0, [], "", ""
 
 
 # ==================== OFFLINE FALLBACK ====================
@@ -290,20 +302,20 @@ def generate_analytical_reasoning(category, keywords, grades, interaction, confi
     return " | ".join(parts)
 
 
-def analyze_interest_text_advanced(interest_text: str, grades_dict: Dict = None) -> Tuple[str, float, List[str], str]:
+def analyze_interest_text_advanced(interest_text: str, grades_dict: Dict = None) -> Tuple[str, float, List[str], str, str]:
     """Main entry point: Attempts Gemini analysis, falls back to keywords."""
     interaction_score, interaction_pref = detect_interaction_preference(interest_text)
     
     # 1. Gemini AI (Primary)
-    cat, conf, kws, reason = analyze_interest_with_gemini(interest_text, grades_dict)
+    cat, conf, kws, reason, major = analyze_interest_with_gemini(interest_text, grades_dict)
     if cat:
         conf, note = adjust_confidence_for_interaction(conf, interaction_score, cat)
-        # Combine into a cohesive professional statement
         final_statement = f"{reason} Furthermore, {note.lower()}." if note and "no interaction" not in note.lower() else reason
-        return cat, conf, kws, final_statement
+        return cat, conf, kws, final_statement, major
 
     # 2. Offline Fallback
-    return _offline_analysis(interest_text, grades_dict, interaction_score, interaction_pref)
+    cat, conf, kws, reason = _offline_analysis(interest_text, grades_dict, interaction_score, interaction_pref)
+    return cat, conf, kws, reason, ""
 
 
 def get_major_recommendation(interest_category: str, confidence: float, grades_dict: Dict = None, interaction_score: int = 0) -> Dict:
@@ -332,6 +344,6 @@ def get_major_recommendation(interest_category: str, confidence: float, grades_d
 
 
 def analyze_interest_text(interest_text: str):
-    cat, conf, kws, reason = analyze_interest_text_advanced(interest_text)
+    cat, conf, kws, reason, major = analyze_interest_text_advanced(interest_text)
     codes = {"Technology & Engineering": 0, "Health Sciences": 1, "Business & Commerce": 2, "Humanities & Social Sciences": 3, "Creative Arts & Media": 4}
     return codes.get(cat, -1), kws

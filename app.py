@@ -458,9 +458,8 @@ def predict():
         
         # Analyze natural language interest input using AI analyzer
         interest_text = request.form.get('interest', '').strip()
-        
-        # First try advanced AI analysis
-        ai_category, ai_confidence, ai_keywords, ai_reasoning = analyze_interest_text_advanced(interest_text, scores)
+        # First try advanced AI analysis (returns Category, Conf, Keywords, Reasoning, Major)
+        ai_category, ai_confidence, ai_keywords, ai_reasoning, ai_major = analyze_interest_text_advanced(interest_text, scores)
         
         # Map AI category to legacy code format for compatibility
         category_to_code = {
@@ -486,41 +485,34 @@ def predict():
 
         # ===== 4. DETERMINE INTEREST AND ELIGIBILITY =====
         if interest_code == -1:  # Undecided/unclear interests
-            # For undecided: calculate best fit
             interest_code_alt, best_fit, field_scores = determine_best_fit(scores)
             final_interest_code = interest_code_alt
             is_eligible = True
             guidance_msg = ""
-            undecided_mode = True
             alternative_msg = f"Based on your description, we analyzed your interests and academic strengths. Your best fit appears to be in <strong>{best_fit}</strong>."
         else:
-            # For decided students: check eligibility
-            is_eligible, guidance_msg = check_eligibility(interest_code, scores)
-            undecided_mode = False
-            alternative_msg = ""
             final_interest_code = interest_code
+            is_eligible, guidance_msg = check_eligibility(interest_code, scores)
+            alternative_msg = ""
 
         # ===== 5. PIVOT LOGIC: If not eligible, find best alternative =====
-            # Student doesn't meet requirements for their choice
-            # Find what they're best suited for instead
+        if not is_eligible:
             interest_code_alt, best_fit_area, _ = determine_best_fit(scores)
             final_interest_code = interest_code_alt
             alternative_msg = (f"<strong>Advisor Note:</strong> {guidance_msg}<br><br>"
-                              f"While your initial preference was different, your academic profile shows a truly exceptional aptitude for "
-                              f"<strong>{best_fit_area}</strong>. We believe you would thrive in this field based on your current subject strengths!")
+                              f"While your interest in {ai_category} is great, your current grades perfectly match the requirements for "
+                              f"<strong>{best_fit_area}</strong>. We suggest exploring this path as it aligns with your academic strengths!")
 
-        # ===== 6. GET RECOMMENDATION USING RULES =====
-        major, explanation, confidence = get_major_by_rules(scores, final_interest_code, interest_text)
+        # ===== 6. GET RECOMMENDATION USING RULES (Safety Validator) =====
+        rule_major, rule_explanation, rule_confidence = get_major_by_rules(scores, final_interest_code, interest_text)
+        
+        # FINAL DECISION: If AI suggested a specific major and it's in the right field, use it!
+        # Otherwise fallback to the rule-based recommendation.
+        major = ai_major if (ai_major and not alternative_msg) else rule_major
         school = MAJOR_TO_SCHOOL.get(major, "USIU-Africa")
         
-        # ===== USE AI-GENERATED ANALYTICAL REASONING (conversational analysis) =====
-        # Prioritize the AI analyzer's reasoning which shows grade-interest balance
-        # If alternative recommendation, use guidance message; otherwise use AI reasoning
-        if alternative_msg:
-            final_explanation = alternative_msg
-        else:
-            # Use the new conversational analytical reasoning from AI analyzer
-            final_explanation = ai_reasoning
+        # USE AI-GENERATED ANALYTICAL REASONING
+        final_explanation = alternative_msg if alternative_msg else ai_reasoning
 
         # ===== 7. SAVE TO DATABASE (History) =====
         new_result = Result(
@@ -573,7 +565,7 @@ def predict():
         return render_template('index.html',
                              result=major,
                              school=school,
-                             confidence=round(confidence, 1),
+                             confidence=round(ai_confidence, 1),
                              explanation=full_explanation,
                              input_summary=input_summary,
                              show_results=True,
