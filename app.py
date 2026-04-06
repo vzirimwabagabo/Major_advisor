@@ -157,6 +157,10 @@ def admin():
     
     return render_template('admin.html', users=users, stats=stats)
 
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
+
 @app.route('/toggle_admin/<int:user_id>')
 @login_required
 def toggle_admin(user_id):
