@@ -220,9 +220,10 @@ Majors and Schools at USIU-Africa:
 {majors_text}
 
 Rules:
-1. PRIORITIZE career goals over grades. If they say "manager", favor Business majors.
-2. Provide a UNIQUE, warm, and professional explanation (2-3 sentences). 
-3. Explicitly reference specific words from the student's interest statement in your reasoning.
+1. PRIORITIZE career goals over grades. If they say "manager", favor Business majors even if their Science grades are elite.
+2. If a student has elite grades (mostly As), acknowledge that they are capable of any field, but you are selecting based on their specific passion.
+3. Provide a UNIQUE, warm, and professional explanation (2-3 sentences). 
+4. Explicitly reference specific words from the student's interest statement in your reasoning.
 4. Your response must be in English.
 
 {grade_context}
