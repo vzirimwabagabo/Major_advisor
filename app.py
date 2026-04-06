@@ -512,7 +512,7 @@ def predict():
             final_explanation += f"While you pursue your passion, we also recommend checking out <strong>{best_fit_area}</strong> as a guaranteed match for your current grades."
 
         # Pass to template
-        result = final_major
+        major = final_major
         school = final_school
         explanation = final_explanation
         confidence = ai_confidence
@@ -521,7 +521,7 @@ def predict():
         new_result = Result(
             major=major,
             school=school,
-            confidence=ai_confidence,  # Use AI confidence score
+            confidence=confidence,  # Use AI confidence score
             user_id=current_user.id
         )
         db.session.add(new_result)
@@ -540,11 +540,11 @@ def predict():
             'humanities': hum_pt,
             'tech_business': tech_pt,
             'interest_raw': interest_text,  # Store raw interest text
-            'interest_detected': detected_interests,  # Store detected interests
+            'interest_detected': ai_keywords,  # Store detected interests
             'recommended_major': major,
             'school': school,
-            'confidence': ai_confidence,  # Save AI confidence
-            'ai_reasoning': ai_reasoning,  # Save analytical reasoning
+            'confidence': confidence,  # Save AI confidence
+            'ai_reasoning': explanation,  # Save analytical reasoning
             'timestamp': datetime.utcnow().isoformat()
         }
         save_recommendation_data(student_data)
