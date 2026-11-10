@@ -1,216 +1,66 @@
-# PostgreSQL Database Setup for Vercel
+# 🐘 Supabase PostgreSQL Setup & Deployment Guide
 
-Your app now uses a **proper PostgreSQL database** instead of CSV files! 
-
-## Why PostgreSQL?
-
-✅ **Scalable** - Handle thousands of users
-✅ **Reliable** - ACID compliance, data integrity
-✅ **Performant** - Optimized queries
-✅ **Production-ready** - Industry standard
-✅ **Free with Vercel** - Included with your hosting!
+This project supports **Supabase PostgreSQL** for robust, production-grade persistence.
 
 ---
 
-## Quick Setup (5 minutes)
+## 🚀 Quick Setup with Supabase (3-Step Guide)
 
-### Step 1: Add Vercel Postgres to Your Project
+### Step 1: Create a Supabase Project
+1. Go to **[supabase.com](https://supabase.com)** and sign in / sign up.
+2. Click **New Project**.
+3. Choose an organization, project name (e.g. `usiu-major-advisor`), database password, and preferred region (e.g., `eu-central-1` or closest to Nairobi).
+4. Wait 1-2 minutes for Supabase to provision your PostgreSQL instance.
 
-1. Go to: **https://vercel.com/dashboard**
-2. Select your project → **Storage** tab
-3. Click **"Create Database"** → Select **Postgres**
-4. Choose **Free tier** (Supports development/student projects)
-5. Vercel automatically creates `POSTGRES_URL_NON_POOLING` environment variable ✅
+---
 
-### Step 2: Update Your Environment Variables
+### Step 2: Retrieve Your Connection URI
+1. In your Supabase Dashboard, go to **Project Settings** (gear icon) → **Database**.
+2. Scroll to the **Connection string** section.
+3. Select **URI** mode.
+4. Copy the URI. It will look like:
+   ```text
+   postgresql://postgres.[YOUR-PROJECT-REF]:[YOUR-PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres
+   ```
+   *(Note: Remember to replace `[YOUR-PASSWORD]` with the actual database password you chose in Step 1).*
 
-**Locally (.env file - for development):**
+---
+
+### Step 3: Configure `.env`
+Create a `.env` file in the root of the project:
+
 ```env
-FLASK_ENV=production
-FLASK_DEBUG=False
-SECRET_KEY=your-secret-key-here
-# Leave DATABASE_URL blank for SQLite locally
-# DATABASE_URL=  (uses SQLite by default)
-```
+FLASK_ENV=development
+FLASK_DEBUG=True
 
-**On Vercel (automatic):**
-- Vercel sets `POSTGRES_URL_NON_POOLING` automatically ✅
-- Your app uses it automatically ✅
+# Generate a strong 64-char key:
+# python -c "import secrets; print(secrets.token_hex(32))"
+SECRET_KEY=paste_your_generated_secret_here
 
-### Step 3: Deploy to Vercel
+# Supabase PostgreSQL Connection String:
+DATABASE_URL=postgresql://postgres.yourprojectref:yourpassword@aws-0-eu-central-1.pooler.supabase.com:5432/postgres
 
-```bash
-git add migrate_to_db.py requirements.txt
-git commit -m "Add PostgreSQL support and migration script"
-git push origin main
-```
-
-Vercel will auto-redeploy!
-
-### Step 4: Migrate Data (First Time Only)
-
-After deployment, your data from CSV will be stored in the **database** going forward:
-
-**Local migration (optional):**
-```bash
-python migrate_to_db.py
-```
-
-**Production migration:**
-- Run via Vercel's environment variables
-- Or contact support to execute
-
----
-
-## How It Works
-
-### Before (CSV-based - ❌ Old)
-```
-User Input → Save to CSV → Read from CSV
-```
-
-### After (Database-based - ✅ New)
-```
-User Input → SQLAlchemy ORM → PostgreSQL Database
-            ↓
-         Automatically stored
+# Google Gemini API key:
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 ---
 
-## Database Tables
-
-Your PostgreSQL database now has:
-
-### `user` table
-```
-id          | Integer (Primary Key)
-username    | String (Unique)
-email       | String (Unique)
-password_hash | String
-is_admin    | Boolean
-```
-
-### `result` table
-```
-id          | Integer (Primary Key)
-major       | String
-school      | String
-confidence  | Float
-timestamp   | DateTime
-user_id     | Integer (Foreign Key → user.id)
-```
+## 🛡️ Automatic Schema Initialization
+When you start the application with `python run_waitress.py`, the system automatically:
+1. Connects to Supabase with SSL enforced (`sslmode=require`).
+2. Cleans query strings that cause driver parameter incompatibilities.
+3. Creates all three database tables automatically:
+   - **`user`**: User accounts (username, email, bcrypt password hash with 128-byte safety, admin flag).
+   - **`result`**: Student recommendations history with foreign key to user.
+   - **`audit_log`**: Security audit log tracking administrative role changes and deletions.
 
 ---
 
-## Data Migration
-
-### Option A: Automatic (Recommended)
-
-The app **automatically saves to database** for all NEW recommendations after deployment!
-
-### Option B: Manual Migration from CSV
-
-```bash
-# Run migration script to move existing CSV data to database
-python migrate_to_db.py
-```
-
-This will:
-- ✅ Read all data from `student_recommendation_data.csv`
-- ✅ Read all data from `data/recommendations.json`
-- ✅ Import into PostgreSQL database
-- ✅ Show summary of migrated records
-
----
-
-## Verification
-
-### Check Database is Working
-
-1. **On Vercel Dashboard:**
-   - Go to Storage → Postgres
-   - Click **"Browse"** tab
-   - You should see `user` and `result` tables ✅
-
-2. **Test the App:**
-   - Create a new user account
-   - Get a recommendation
-   - Check app: **Admin → Analytics**
-   - Should show recommendations in the database ✅
-
----
-
-## Production Environment Variables
-
-On Vercel, these are automatically set:
-- `POSTGRES_URL_NON_POOLING` - Connection string
-- `FLASK_ENV=production`
-- `FLASK_DEBUG=False`
-- `SECRET_KEY` (set manually in dashboard)
-
----
-
-## Connection String Format
-
-Your PostgreSQL URL looks like:
-```
-postgresql://user:password@host:5432/database_name
-```
-
-Vercel automatically provides this as `POSTGRES_URL_NON_POOLING`
-
----
-
-## File Changes Made
-
-✅ `migrate_to_db.py` - Data migration script
-✅ `requirements.txt` - Added psycopg2 (PostgreSQL driver)
-✅ `app.py` - Already configured for PostgreSQL via DATABASE_URL
-✅ `.env.example` - Updated with database info
-
----
-
-## Troubleshooting
-
-### "Cannot connect to database"
-- Verify Postgres addon is created in Vercel dashboard
-- Check that POSTGRES_URL_NON_POOLING environment variable exists
-- Redeploy after adding the database
-
-### "No such table: user"
-- Run migration: `python migrate_to_db.py`
-- Or the app's first request will auto-create tables
-
-### "psycopg2 not found"
-```bash
-pip install psycopg2-binary
-```
-
-### SQLite still being used
-- Check that `DATABASE_URL` environment variable is set
-- If not set, app defaults to SQLite (good for development!)
-
----
-
-## Performance Tips
-
-✅ **Vercel Postgres Free Tier includes:**
-- 256 MB storage
-- Up to 60 connections
-- Automated backups
-
-**For scaling:**
-- Upgrade to Pro tier if you outgrow free tier
-- Or migrate to dedicated PostgreSQL hosting (AWS RDS, Railway, etc.)
-
----
-
-## Next Steps
-
-1. ✅ Add Vercel Postgres to your project
-2. ✅ Deploy with `git push`
-3. ✅ Verify database works
-4. ⏳ (Optional) Run migration: `python migrate_to_db.py`
-
-**Your database-driven system is ready!** 🚀
+## 🔒 Security Best Practices Implemented
+- **SSL Required**: All PostgreSQL network connections require encrypted transit (`sslmode=require`).
+- **Connection Pooling**: Serverless and multithreaded pool recycling prevents connection exhaustion.
+- **CSRF Protection**: All POST endpoints are protected by Flask-WTF synchronized tokens.
+- **Brute Force Defense**: Login and registration endpoints are protected with strict IP rate limiting.
+- **XSS Sanitization**: All AI-generated advice is scrubbed with `bleach` to strip malicious scripts and event handlers.
+- **Zero PII Logging**: Offline CSV training dataset replaces raw student emails with irreversible cryptographic hashes.

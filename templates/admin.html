@@ -69,7 +69,7 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        .admin-header h1 { color: #8B0000; font-size: 2em; }
+        .admin-header h1 { color: #8B0000; font-size: 1.8em; }
         .user-info { text-align: right; font-size: 0.9em; }
 
         /* Stats Grid */
@@ -102,24 +102,6 @@
 
         .content-section h2 { color: #8B0000; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #eee; }
 
-        /* Search/Filter */
-        .filter-bar {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-
-        .filter-bar input, .filter-bar select, .filter-bar button {
-            padding: 10px 15px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 0.95em;
-        }
-
-        .filter-bar button { background-color: #8B0000; color: white; cursor: pointer; }
-        .filter-bar button:hover { background-color: #6b0000; }
-
         /* Table */
         .table-responsive { overflow-x: auto; }
         
@@ -150,6 +132,7 @@
             text-decoration: none;
             display: inline-block;
             transition: all 0.2s;
+            font-weight: 600;
         }
 
         .btn-primary { background-color: #8B0000; color: white; }
@@ -177,13 +160,6 @@
 
         .alert-success { background-color: #d4edda; color: #155724; border-left-color: #28a745; }
         .alert-danger { background-color: #f8d7da; color: #721c24; border-left-color: #dc3545; }
-
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 40px;
-            color: #999;
-        }
 
         /* Responsive */
         @media (max-width: 768px) {
@@ -299,9 +275,7 @@
                     </table>
                 </div>
             {% else %}
-                <div class="empty-state">
-                    <p>No recommendations yet.</p>
-                </div>
+                <p style="color: #666; text-align: center; padding: 20px;">No recommendations yet.</p>
             {% endif %}
         </div>
 
@@ -339,9 +313,12 @@
                                         <span style="color: #999; font-size: 0.85em;">(Your account)</span>
                                     {% else %}
                                         <a href="{{ url_for('admin_user_history', user_id=user.id) }}" class="btn btn-info">History</a>
-                                        <a href="{{ url_for('toggle_admin', user_id=user.id) }}" class="btn {% if user.is_admin %}btn-warning{% else %}btn-primary{% endif %}">
-                                            {% if user.is_admin %}Remove Admin{% else %}Make Admin{% endif %}
-                                        </a>
+                                        <form method="POST" action="{{ url_for('toggle_admin', user_id=user.id) }}" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" class="btn {% if user.is_admin %}btn-warning{% else %}btn-primary{% endif %}" onclick="return confirm('Change admin role for {{ user.username }}?');">
+                                                {% if user.is_admin %}Remove Admin{% else %}Make Admin{% endif %}
+                                            </button>
+                                        </form>
                                         <a href="{{ url_for('admin_delete_user', user_id=user.id) }}" class="btn btn-danger">Delete</a>
                                     {% endif %}
                                 </td>

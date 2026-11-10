@@ -2,19 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register - USIU AI Advisor</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .auth-box { background: white; width: 100%; max-width: 400px; padding: 40px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); text-align: center; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        .auth-box { background: white; width: 100%; max-width: 440px; padding: 40px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); text-align: center; }
         h1 { color: #8B0000; margin-bottom: 10px; }
-        p { color: #666; margin-bottom: 30px; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        button { width: 100%; background-color: #8B0000; color: white; padding: 12px; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        p { color: #666; margin-bottom: 25px; }
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 0.95em; }
+        input:focus { border-color: #8B0000; outline: none; }
+        button { width: 100%; background-color: #8B0000; color: white; padding: 12px; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 15px; font-weight: bold; }
         button:hover { background-color: #a30000; }
         .alert { padding: 10px; margin-bottom: 15px; border-radius: 4px; font-size: 0.9em; text-align: left; }
         .danger { background-color: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
         .success { background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
-        .link { display: block; margin-top: 20px; color: #8B0000; text-decoration: none; }
+        .password-hints { font-size: 0.78em; color: #666; text-align: left; margin: 4px 0 12px; line-height: 1.4; }
+        .link { display: block; margin-top: 20px; color: #8B0000; text-decoration: none; font-weight: 500; }
+        .link:hover { text-decoration: underline; }
         
         @media (max-width: 480px) {
             .auth-box { padding: 25px; margin: 15px; }
@@ -36,9 +40,13 @@
     {% endwith %}
 
     <form method="POST" action="/register">
-        <input type="text" name="username" placeholder="Username" maxlength="80" required>
-        <input type="email" name="email" placeholder="Email Address" required>
-        <input type="password" name="password" placeholder="Password" required>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <input type="text" name="username" placeholder="Username (letters, numbers, underscores)" maxlength="80" autocomplete="username" required>
+        <input type="email" name="email" placeholder="Email Address" autocomplete="email" required>
+        <input type="password" name="password" placeholder="Password (min 8 chars, uppercase, number, symbol)" autocomplete="new-password" required>
+        <div class="password-hints">
+            🔒 Password must be at least 8 characters and include an uppercase letter, a number, and a special character (@$!%*?&amp;_#-).
+        </div>
         <button type="submit">Register</button>
     </form>
 

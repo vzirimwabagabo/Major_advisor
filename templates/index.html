@@ -3,94 +3,272 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>USIU-Africa AI Major Advisor</title>
+    <title>Pan-African AI University Major Advisor</title>
     <style>
         /* --- Base Styles --- */
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; margin: 0; padding: 0; display: flex; justify-content: center; min-height: 100vh; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #f4f7f6; 
+            margin: 0; 
+            padding: 0; 
+            display: flex; 
+            justify-content: center; 
+            min-height: 100vh; 
+        }
         
         /* --- Container --- */
-        .container { background: white; width: 100%; max-width: 900px; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin: 20px; }
+        .container { 
+            background: white; 
+            width: 100%; 
+            max-width: 960px; 
+            padding: 35px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 25px rgba(0,0,0,0.07); 
+            margin: 25px 20px; 
+        }
         
         /* --- Header Styles --- */
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 25px; }
-        .header h1 { color: #8B0000; margin: 0; font-size: 1.6em; }
+        .header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 2px solid #eee; 
+            padding-bottom: 18px; 
+            margin-bottom: 25px; 
+        }
+        .header h1 { 
+            color: #8B0000; 
+            margin: 0; 
+            font-size: 1.75em; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+        }
+        .header-sub { 
+            font-size: 0.88em; 
+            color: #666; 
+            margin-top: 4px; 
+        }
         .header-info { text-align: right; }
         .header-info span { display: block; font-size: 0.9em; color: #666; }
         .header-info a { color: #8B0000; font-weight: bold; text-decoration: none; font-size: 0.9em; margin-left: 10px; }
         .header-info a:hover { text-decoration: underline; }
 
-        /* --- Responsiveness Media Queries --- */
-        @media (max-width: 768px) {
-            .container { margin: 10px; padding: 15px; }
-            .header { flex-direction: column; text-align: center; }
-            .header-info { text-align: center; margin-top: 15px; }
-            .header-info a { margin: 0 5px; }
-            .form-grid { grid-template-columns: 1fr; }
-            .summary-grid { grid-template-columns: repeat(2, 1fr); }
-            .result-major { font-size: 1.4em; }
+        /* --- System Selector Card --- */
+        .system-banner {
+            background: linear-gradient(135deg, #fdf5f5 0%, #fff 100%);
+            border: 1px solid #f2cfcf;
+            border-radius: 10px;
+            padding: 18px 22px;
+            margin-bottom: 25px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
         }
-        
-        @media (max-width: 480px) {
-            .summary-grid { grid-template-columns: 1fr; }
-            .header h1 { font-size: 1.3em; }
+
+        .system-field label {
+            font-size: 0.82em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #8B0000;
+            margin-bottom: 6px;
+            display: block;
         }
 
         /* --- Alert / Flash Messages --- */
-        .alert { padding: 12px; margin-bottom: 20px; border-radius: 4px; font-size: 0.9em; }
+        .alert { padding: 12px 16px; margin-bottom: 20px; border-radius: 6px; font-size: 0.9em; }
         .danger { background-color: #ffebee; color: #c62828; border-left: 5px solid #f44336; }
         .success { background-color: #e8f5e9; color: #2e7d32; border-left: 5px solid #4caf50; }
 
         /* --- Form Styles --- */
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
         .full-width { grid-column: 1 / -1; }
         
         .section-header { 
             grid-column: 1 / -1; 
-            background-color: #f0f0f0; 
-            padding: 10px; 
+            background: linear-gradient(90deg, #f8f0f0 0%, #ffffff 100%);
+            padding: 10px 14px; 
             border-left: 4px solid #8B0000; 
-            font-weight: bold; 
-            margin-top: 15px;
-            color: #333;
-            font-size: 0.95em;
+            font-weight: 700; 
+            margin-top: 15px; 
+            margin-bottom: 5px;
+            color: #8B0000; 
+            font-size: 0.95em; 
+            border-radius: 0 4px 4px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
-        label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.85em; color: #444; }
-        input[type="text"], textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-size: 0.9em; }
-        input[type="text"]:focus, textarea:focus { border-color: #8B0000; outline: none; }
-        .help-text { font-size: 0.75em; color: #666; margin-top: 3px; font-style: italic; }
+        label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.85em; color: #333; }
+        select, textarea { 
+            width: 100%; 
+            padding: 10px 12px; 
+            border: 1px solid #ccc; 
+            border-radius: 6px; 
+            background: #fff; 
+            font-size: 0.92em; 
+            box-sizing: border-box; 
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        select:focus, textarea:focus { border-color: #8B0000; outline: none; box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.12); }
+        .help-text { font-size: 0.75em; color: #666; margin-top: 4px; font-style: italic; }
         
-        button { width: 100%; background-color: #8B0000; color: white; padding: 15px; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 25px; font-weight: bold; }
-        button:hover { background-color: #a30000; }
+        .btn-submit { 
+            width: 100%; 
+            background-color: #8B0000; 
+            color: white; 
+            padding: 15px; 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            cursor: pointer; 
+            margin-top: 25px; 
+            font-weight: bold; 
+            transition: background 0.2s, transform 0.1s;
+        }
+        .btn-submit:hover { background-color: #6b0000; }
+        .btn-submit:active { transform: scale(0.99); }
 
         /* --- Result Styles --- */
-        .result-container { margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px; }
+        .result-container { 
+            margin-top: 35px; 
+            border-top: 2px dashed #ddd; 
+            padding-top: 25px; 
+            scroll-margin-top: 20px;
+        }
         
-        .input-summary { background-color: #f9f9f9; padding: 15px; border-radius: 5px; border: 1px solid #ddd; margin-bottom: 20px; }
-        .input-summary h3 { margin-top: 0; color: #555; font-size: 1em; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+        .action-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            justify-content: space-between;
+            align-items: center;
+            background: #fdf6f6;
+            padding: 14px 18px;
+            border-radius: 8px;
+            border: 1px solid #f0d8d8;
+        }
+
+        .btn-reanalyse {
+            background-color: #8B0000;
+            color: white;
+            padding: 10px 18px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9em;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.2s;
+        }
+        .btn-reanalyse:hover { background-color: #6b0000; }
+
+        .btn-secondary {
+            background-color: #fff;
+            color: #555;
+            padding: 9px 16px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 0.9em;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover { background-color: #f5f5f5; border-color: #999; }
+
+        .input-summary { background-color: #f9f9f9; padding: 18px; border-radius: 8px; border: 1px solid #e5e5e5; margin-bottom: 20px; }
+        .input-summary h3 { margin-top: 0; color: #444; font-size: 1.05em; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
         .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 0.85em; }
-        .summary-item { background: white; padding: 5px; border: 1px solid #eee; text-align: center; }
-        .summary-item strong { display: block; color: #8B0000; }
+        .summary-item { background: white; padding: 8px 10px; border: 1px solid #e0e0e0; border-radius: 4px; text-align: center; }
+        .summary-item strong { display: block; color: #8B0000; margin-bottom: 2px; }
 
         /* Explanation Boxes */
-        .explanation-box { background-color: #fff3cd; border-left: 5px solid #ffc107; padding: 15px; margin-bottom: 20px; color: #666; font-style: italic; }
-        
-        /* Guidance Box (Blue - for 'Second Choice' recommendations) */
-        .guidance-box { 
-            background-color: #e3f2fd; /* Soft Blue */
-            border-left: 5px solid #2196f3; 
-            padding: 20px; 
+        .explanation-box { 
+            background-color: #fffbf0; 
+            border-left: 5px solid #ffb300; 
+            padding: 18px; 
             margin-bottom: 20px; 
-            color: #0d47a1; 
-            line-height: 1.6; 
-            font-size: 0.95em;
+            color: #333; 
+            line-height: 1.65; 
+            border-radius: 0 6px 6px 0;
+            font-size: 0.96em;
         }
-        .guidance-box strong { color: #0d47a1; }
 
-        /* Final Result Box (Green) */
-        .result-box { padding: 25px; background-color: #e8f5e9; border-left: 5px solid #4caf50; border-radius: 4px; text-align: center; }
-        .result-major { font-size: 1.8em; font-weight: bold; color: #2e7d32; margin: 0; }
-        .result-school { color: #555; font-size: 1.1em; margin-top: 5px; font-weight: bold; }
+        .guidance-box {
+            background-color: #fff3e0;
+            border-left: 5px solid #ff9800;
+            padding: 18px;
+            margin-bottom: 20px;
+            color: #5d4037;
+            line-height: 1.65;
+            border-radius: 0 6px 6px 0;
+            font-size: 0.96em;
+        }
+
+        .result-box { 
+            background: linear-gradient(135deg, #f1f8e9 0%, #e8f5e9 100%); 
+            border: 2px solid #81c784; 
+            padding: 26px; 
+            border-radius: 10px; 
+            text-align: center; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+        }
+        .result-major { font-size: 1.8em; font-weight: bold; color: #1b5e20; margin: 10px 0; }
+        .result-school { font-size: 1.15em; color: #2e7d32; margin-bottom: 15px; font-weight: 500; }
+        
+        .confidence-pill {
+            display: inline-block;
+            background-color: #2e7d32;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.88em;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        .quick-pills { 
+            display: flex; 
+            gap: 8px; 
+            flex-wrap: wrap; 
+            margin-top: 10px; 
+        }
+        .quick-pill { 
+            background: #f0f4f8; 
+            border: 1px solid #d0d7de; 
+            color: #24292f; 
+            font-size: 0.8em; 
+            padding: 5px 11px; 
+            border-radius: 15px; 
+            cursor: pointer; 
+            transition: all 0.2s;
+        }
+        .quick-pill:hover { background: #8B0000; color: white; border-color: #8B0000; }
+
+        @media (max-width: 768px) {
+            .container { margin: 10px; padding: 20px; }
+            .header { flex-direction: column; text-align: center; }
+            .header-info { text-align: center; margin-top: 15px; }
+            .header-info a { margin: 0 5px; }
+            .system-banner { grid-template-columns: 1fr; gap: 12px; }
+            .form-grid { grid-template-columns: 1fr; }
+            .summary-grid { grid-template-columns: repeat(2, 1fr); }
+            .result-major { font-size: 1.4em; }
+            .action-bar { flex-direction: column; }
+        }
+        @media (max-width: 480px) {
+            .summary-grid { grid-template-columns: 1fr; }
+            .header h1 { font-size: 1.3em; }
+        }
     </style>
 </head>
 <body>
@@ -100,19 +278,17 @@
     <!-- Header Section -->
     <div class="header">
         <div>
-            <h1>AI Major Advisor</h1>
-            <div style="font-size:0.85em; color:#666;">United States International University - Africa</div>
+            <h1>🎓 Pan-African AI Major Advisor</h1>
+            <div class="header-sub">Multi-Curriculum Academic Orientation &amp; University Degree Guidance</div>
         </div>
         <div class="header-info">
             <span>Logged in as: <strong>{{ current_user.username }}</strong></span>
             <div style="margin-top:5px;">
-                <a href="{{ url_for('history') }}" style="text-decoration:none; color:#333; margin-right:15px;">My History</a>
-                
+                <a href="{{ url_for('history') }}">My History</a>
                 {% if current_user.is_admin %}
-                    <a href="{{ url_for('admin') }}" style="text-decoration:none; color:#8B0000; margin-right:15px; font-weight:bold;">Admin Panel</a>
+                    <a href="{{ url_for('admin') }}" style="color:#8B0000; font-weight:bold;">Admin Panel</a>
                 {% endif %}
-                
-                <a href="{{ url_for('delete_account') }}" style="color:#dc3545; font-weight:bold; margin-right:15px;" onclick="return confirm('Are you sure you want to delete your account? This action cannot be undone.')">Delete Account</a>
+                <a href="{{ url_for('delete_account') }}" style="color:#dc3545; font-weight:bold;">Delete Account</a>
                 <a href="{{ url_for('logout') }}" style="color:#8B0000; font-weight:bold;">Logout</a>
             </div>
         </div>
@@ -127,94 +303,183 @@
       {% endif %}
     {% endwith %}
 
-    <!-- Main Form -->
-    <form action="/predict" method="POST">
+    <!-- Main Analysis Form -->
+    <form id="analysis-form" action="/predict" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         
-        <!-- GROUP I: COMPULSORY -->
-        <div class="section-header">Group I: Compulsory Subjects</div>
-        
-        <div>
-            <label>Mathematics (121/122)</label>
-            <input type="text" name="math" placeholder="e.g., A, B+, A-, B" required>
-            <div class="help-text">Enter your KCSE Mathematics grade (required)</div>
+        <!-- ==================== COUNTRY, CURRICULUM & UNIVERSITY SELECTOR ==================== -->
+        <div class="system-banner">
+            <div class="system-field">
+                <label for="country">🌍 1. Your Country / Region</label>
+                <select id="country" name="country" onchange="onCountryChange(this.value)" required>
+                    {% for c in country_options %}
+                        <option value="{{ c.id }}" {% if (form_data.country or 'Kenya') == c.id %}selected{% endif %}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="help-text">Where you completed secondary school.</div>
+            </div>
+
+            <div class="system-field">
+                <label for="curriculum">📜 2. High School Education System</label>
+                <select id="curriculum" name="curriculum" onchange="onCurriculumChange(this.value)" required>
+                    {% for cur_id, cur in curricula.items() %}
+                        <option value="{{ cur_id }}" {% if (form_data.curriculum or 'ke_kcse') == cur_id %}selected{% endif %}>{{ cur.name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="help-text">Subjects &amp; grading scale update automatically.</div>
+            </div>
+
+            <div class="system-field">
+                <label for="target_uni">🏛️ 3. Target University</label>
+                <select id="target_uni" name="target_uni" required>
+                    {% for uni_id, uni in universities.items() %}
+                        <option value="{{ uni_id }}" {% if (form_data.target_uni or 'usiu') == uni_id %}selected{% endif %}>{{ uni.name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="help-text">Select your target campus or Pan-Africa match.</div>
+            </div>
         </div>
 
-        <div>
-            <label>English (101)</label>
-            <input type="text" name="english" placeholder="e.g., A, B+, A-, B" required>
-            <div class="help-text">Enter your KCSE English grade (required)</div>
+        <div class="form-grid">
+            
+            <!-- GROUP I: COMPULSORY SUBJECTS -->
+            <div class="section-header">
+                <span id="compulsory-header-text">Group I: Compulsory &amp; Core Subjects</span>
+                <span style="font-size:0.78em; font-weight:normal; opacity:0.9;">Mandatory for degree eligibility</span>
+            </div>
+            
+            <!-- Math Slot -->
+            <div id="slot-math">
+                <label id="lbl-math" for="math">Mathematics *</label>
+                <select id="math" name="math" required>
+                    <!-- Populated dynamically via JS -->
+                </select>
+                <div class="help-text" id="help-math">Compulsory quantitative requirement.</div>
+            </div>
+
+            <!-- English Slot -->
+            <div id="slot-english">
+                <label id="lbl-english" for="english">English *</label>
+                <select id="english" name="english" required>
+                    <!-- Populated dynamically via JS -->
+                </select>
+                <div class="help-text" id="help-english">Language proficiency requirement.</div>
+            </div>
+
+            <!-- Second Language / Core Slot -->
+            <div id="slot-kiswahili">
+                <label id="lbl-kiswahili" for="kiswahili">Second Language / Core Subject *</label>
+                <select id="kiswahili" name="kiswahili">
+                    <!-- Populated dynamically via JS -->
+                </select>
+                <div class="help-text" id="help-kiswahili">National curriculum subject.</div>
+            </div>
+
+            <!-- Humanities Slot -->
+            <div id="slot-humanities">
+                <label id="lbl-humanities" for="humanities">Humanities / Social Sciences *</label>
+                <select id="humanities" name="humanities" required>
+                    <!-- Populated dynamically via JS -->
+                </select>
+                <div class="help-text" id="help-humanities">Highest score in Humanities / Social Sciences.</div>
+            </div>
+
+            <!-- GROUP II: SCIENCES & ELECTIVES -->
+            <div class="section-header">
+                <span id="electives-header-text">Group II: Pure &amp; Applied Sciences / Electives</span>
+                <span style="font-size:0.78em; font-weight:normal; opacity:0.9;">Select "Not Taken" if not studied</span>
+            </div>
+
+            <!-- Biology Slot -->
+            <div id="slot-biology">
+                <label id="lbl-biology" for="biology">Biology</label>
+                <select id="biology" name="biology">
+                    <!-- Populated dynamically via JS -->
+                </select>
+                <div class="help-text" id="help-biology">Health, Biological &amp; Life Sciences prerequisite.</div>
+            </div>
+
+            <!-- Physics Slot -->
+            <div id="slot-physics">
+                <label id="lbl-physics" for="physics">Physics</label>
+                <select id="physics" name="physics">
+                    <!-- Populated dynamically via JS -->
+                </select>
+                <div class="help-text" id="help-physics">Key for Engineering, Software &amp; Physical Sciences.</div>
+            </div>
+
+            <!-- Chemistry Slot -->
+            <div id="slot-chemistry">
+                <label id="lbl-chemistry" for="chemistry">Chemistry</label>
+                <select id="chemistry" name="chemistry">
+                    <!-- Populated dynamically via JS -->
+                </select>
+                <div class="help-text" id="help-chemistry">Pharmacy, Medicine &amp; Chemical Sciences.</div>
+            </div>
+
+            <!-- Tech / Business Slot -->
+            <div id="slot-tech_bus">
+                <label id="lbl-tech_bus" for="tech_bus">Technical / Business / Applied Elective</label>
+                <select id="tech_bus" name="tech_bus">
+                    <!-- Populated dynamically via JS -->
+                </select>
+                <div class="help-text" id="help-tech_bus">Computing, Economics, Entrepreneurship, Accounting.</div>
+            </div>
+
+            <!-- INTEREST STATEMENT -->
+            <div class="section-header">
+                <span>Personal Aspirations &amp; Career Interests</span>
+                <span style="font-size:0.78em; font-weight:normal; opacity:0.9;">Evaluated by AI reasoning engine</span>
+            </div>
+            
+            <div class="full-width">
+                <label for="interest">Describe your career passions, what you enjoy doing, or what you want to achieve *</label>
+                <textarea id="interest" name="interest" rows="4" maxlength="2000" placeholder="Describe your goals! For example:
+• I want to develop mobile applications and innovate in artificial intelligence
+• I want to help patients and make an impact in clinical healthcare
+• I am passionate about finance, entrepreneurship, and leading businesses
+• I enjoy international diplomacy, governance, and public policy
+• I am not sure yet, but I love science and solving complex puzzles" required>{{ form_data.interest or '' }}</textarea>
+                
+                <div class="quick-pills">
+                    <span style="font-size: 0.8em; color: #666; margin-right: 4px;">Quick Suggestions:</span>
+                    <button type="button" class="quick-pill" onclick="setInterest('I want to build software applications, work with data, and lead technology innovation.')">💻 Tech &amp; AI</button>
+                    <button type="button" class="quick-pill" onclick="setInterest('I want to provide patient care and pursue a clinical or pharmaceutical career.')">🏥 Health Sciences</button>
+                    <button type="button" class="quick-pill" onclick="setInterest('I want to manage corporations, analyze investments, and lead new businesses.')">📈 Business &amp; Finance</button>
+                    <button type="button" class="quick-pill" onclick="setInterest('I am passionate about global politics, international diplomacy, and law.')">⚖️ Diplomacy &amp; Justice</button>
+                    <button type="button" class="quick-pill" onclick="setInterest('I enjoy animation, film directing, storytelling, and digital media production.')">🎬 Media &amp; Film</button>
+                    <button type="button" class="quick-pill" onclick="setInterest('I am not sure yet, please recommend the best program based on my academic strengths.')">🧭 Exploratory / Undecided</button>
+                </div>
+            </div>
+
         </div>
 
-        <div>
-            <label>Kiswahili (102)</label>
-            <input type="text" name="kiswahili" placeholder="e.g., A, B+, A-, B" required>
-            <div class="help-text">Enter your KCSE Kiswahili grade (required)</div>
-        </div>
-
-        <!-- GROUP II: SCIENCES -->
-        <div class="section-header">Group II: Sciences (Optional - leave blank if not taken)</div>
-
-        <div>
-            <label>Biology (231)</label>
-            <input type="text" name="biology" placeholder="e.g., A, B+, A-, B or leave blank">
-            <div class="help-text">Enter your KCSE Biology grade (optional)</div>
-        </div>
-
-        <div>
-            <label>Physics (232)</label>
-            <input type="text" name="physics" placeholder="e.g., A, B+, A-, B or leave blank">
-            <div class="help-text">Enter your KCSE Physics grade (optional)</div>
-        </div>
-
-        <div>
-            <label>Chemistry (233)</label>
-            <input type="text" name="chemistry" placeholder="e.g., A, B+, A-, B or leave blank">
-            <div class="help-text">Enter your KCSE Chemistry grade (optional)</div>
-        </div>
-
-        <!-- GROUP III: HUMANITIES -->
-        <div class="section-header">Group III: Humanities (Required - History, Geography, or Religious Education)</div>
-
-        <div>
-            <label>Best Humanity Subject</label>
-            <input type="text" name="humanities" placeholder="e.g., A, B+, A-, B" required>
-            <div class="help-text">Enter your best KCSE Humanities grade (required)</div>
-        </div>
-
-        <!-- GROUP IV/V: APPLIED / BUSINESS -->
-        <div class="section-header">Group IV/V: Technical & Business (Optional)</div>
-
-        <div>
-            <label>Best Technical/Business Subject</label>
-            <input type="text" name="tech_bus" placeholder="e.g., A, B+, A-, B or leave blank">
-            <div class="help-text">Enter your best Technical/Business grade (optional)</div>
-        </div>
-
-        <!-- INTEREST -->
-        <div class="section-header">Tell Us About Your Interests</div>
-        <div class="full-width">
-            <label>Describe your interests and career aspirations</label>
-            <textarea name="interest" rows="4" placeholder="Tell us what you're passionate about! For example:
-• I love technology and want to create apps and websites
-• I'm interested in business and entrepreneurship
-• I want to help people and work in healthcare
-• I'm creative and enjoy media, film, or design
-• I like understanding people and society
-• I'm not sure yet, but I enjoy science and problem-solving
-
-Be as specific as you want - this helps us give you better recommendations!" required></textarea>
-            <div class="help-text">Describe your interests in your own words. This helps us understand what majors might suit you best and also helps USIU plan new programs based on student needs.</div>
-        </div>
-
-        <button type="submit">Analyze Subjects</button>
+        <button type="submit" class="btn-submit" id="submit-btn">🚀 Analyze Academic Profile &amp; Recommend Major</button>
     </form>
 
     <!-- Results Section -->
     {% if show_results %}
-    <div class="result-container">
+    <div class="result-container" id="results">
         
+        <!-- Re-analyse Action Bar -->
+        <div class="action-bar">
+            <div>
+                <strong>💡 Want to explore another university or adjust your grades?</strong>
+                <div style="font-size: 0.85em; color: #666;">You can change your target university, high school system, or grades above and re-analyse instantly.</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn-reanalyse" onclick="scrollToForm()">
+                    🔄 Modify &amp; Re-analyse
+                </button>
+                <a href="{{ url_for('index') }}" class="btn-secondary">
+                    Clear Form
+                </a>
+            </div>
+        </div>
+
+        <!-- Academic Profile Summary -->
         <div class="input-summary">
-            <h3>Step 1: Your Academic Profile (Input)</h3>
+            <h3>📋 Verified Candidate Profile</h3>
             <div class="summary-grid">
                 {% for subject, grade in input_summary.items() %}
                 <div class="summary-item">
@@ -225,30 +490,154 @@ Be as specific as you want - this helps us give you better recommendations!" req
             </div>
         </div>
 
-        <!-- Change box color based on 'is_alternative' flag -->
+        <!-- Decision Logic -->
         {% if is_alternative %}
             <div class="guidance-box">
-                <strong>💡 Personalized Guidance</strong><br>
+                <strong>💡 Academic Advisory &amp; Prerequisite Guidance</strong><br>
                 {{ explanation|safe }}
             </div>
         {% else %}
             <div class="explanation-box">
-                <strong>Decision Logic</strong><br>
+                <strong>🧠 Academic Advisor Decision Logic</strong><br>
                 {{ explanation|safe }}
             </div>
         {% endif %}
 
-        <!-- Final Recommendation Box -->
+        <!-- Final Recommendation Card -->
         <div class="result-box">
-            <h3>Recommended Major</h3>
+            <h3 style="margin-top: 0; color: #2e7d32; font-size: 1.1em; letter-spacing: 0.5px;">RECOMMENDED DEGREE PROGRAM</h3>
             <p class="result-major">{{ result }}</p>
             <p class="result-school">{{ school }}</p>
-            <p style="font-size:0.9em; color:#666; margin-top:10px;">Model Confidence: {{ confidence }}%</p>
+            <div>
+                <span class="confidence-pill">Model Confidence: {{ confidence }}%</span>
+            </div>
         </div>
 
     </div>
     {% endif %}
+
 </div>
+
+<script>
+    // Embedded registry from server
+    const EDUCATION_DATA = {
+        curricula: {{ curricula | tojson }},
+        universities: {{ universities | tojson }},
+        countryOptions: {{ country_options | tojson }}
+    };
+
+    // Stored form values from server rendering
+    const SAVED_FORM = {{ form_data | tojson }};
+
+    function onCountryChange(countryId) {
+        const option = EDUCATION_DATA.countryOptions.find(c => c.id === countryId);
+        if (option) {
+            const curSelect = document.getElementById('curriculum');
+            const uniSelect = document.getElementById('target_uni');
+
+            if (curSelect) {
+                curSelect.value = option.default_curriculum;
+                onCurriculumChange(option.default_curriculum);
+            }
+            if (uniSelect) {
+                uniSelect.value = option.default_uni;
+            }
+        }
+    }
+
+    function onCurriculumChange(curriculumId) {
+        const curr = EDUCATION_DATA.curricula[curriculumId] || EDUCATION_DATA.curricula['ke_kcse'];
+        if (!curr) return;
+
+        // Update Compulsory Subjects
+        curr.subjects.compulsory.forEach(sub => {
+            const lbl = document.getElementById('lbl-' + sub.id);
+            const help = document.getElementById('help-' + sub.id);
+            const sel = document.getElementById(sub.id);
+
+            if (lbl) lbl.textContent = sub.name + (sub.code ? ' (' + sub.code + ') *' : ' *');
+            if (help) help.textContent = sub.desc || '';
+            if (sel) {
+                const currentVal = sel.value || (SAVED_FORM && SAVED_FORM[sub.id]) || '';
+                populateGradeOptions(sel, curr.grade_scale, false, currentVal);
+            }
+        });
+
+        // Update Elective Subjects
+        curr.subjects.electives.forEach(sub => {
+            const lbl = document.getElementById('lbl-' + sub.id);
+            const help = document.getElementById('help-' + sub.id);
+            const sel = document.getElementById(sub.id);
+
+            if (lbl) lbl.textContent = sub.name + (sub.code ? ' (' + sub.code + ')' : '');
+            if (help) help.textContent = sub.desc || '';
+            if (sel) {
+                const currentVal = sel.value || (SAVED_FORM && SAVED_FORM[sub.id]) || 'NOT TAKEN';
+                populateGradeOptions(sel, curr.grade_scale, true, currentVal);
+            }
+        });
+    }
+
+    function populateGradeOptions(selectElement, gradeScale, isElective, selectedValue) {
+        const previousVal = selectedValue || selectElement.value;
+        selectElement.innerHTML = '';
+
+        if (isElective) {
+            const notTakenOpt = document.createElement('option');
+            notTakenOpt.value = 'NOT TAKEN';
+            notTakenOpt.textContent = 'Not Taken (0 points)';
+            if (!previousVal || previousVal === 'NOT TAKEN') notTakenOpt.selected = true;
+            selectElement.appendChild(notTakenOpt);
+        } else {
+            const placeholderOpt = document.createElement('option');
+            placeholderOpt.value = '';
+            placeholderOpt.disabled = true;
+            placeholderOpt.textContent = '-- Select Grade --';
+            if (!previousVal) placeholderOpt.selected = true;
+            selectElement.appendChild(placeholderOpt);
+        }
+
+        let foundMatch = false;
+        gradeScale.forEach(([code, display, pts]) => {
+            const opt = document.createElement('option');
+            opt.value = code;
+            opt.textContent = display;
+            if (previousVal && (previousVal.toUpperCase() === code.toUpperCase())) {
+                opt.selected = true;
+                foundMatch = true;
+            }
+            selectElement.appendChild(opt);
+        });
+
+        // Fallback: if not matched and compulsory, select top grade or leave placeholder
+        if (!foundMatch && previousVal && !isElective) {
+            selectElement.value = previousVal;
+        }
+    }
+
+    function setInterest(text) {
+        const textarea = document.getElementById('interest');
+        textarea.value = text;
+        textarea.focus();
+    }
+
+    function scrollToForm() {
+        const form = document.getElementById('analysis-form');
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('interest').focus();
+    }
+
+    // Initialize on DOM load
+    window.addEventListener('DOMContentLoaded', () => {
+        const initialCurriculum = (SAVED_FORM && SAVED_FORM.curriculum) || document.getElementById('curriculum').value || 'ke_kcse';
+        onCurriculumChange(initialCurriculum);
+
+        const resultsEl = document.getElementById('results');
+        if (resultsEl) {
+            resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+</script>
 
 </body>
 </html>

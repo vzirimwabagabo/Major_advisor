@@ -1,18 +1,22 @@
 """
-Advanced AI Interest Analyzer for USIU-Africa Major Recommendation System
-Uses Google Gemini AI (Modern SDK) as primary analyzer for intelligent student interest analysis.
+Advanced AI Interest Analyzer for University Major Recommendation System.
+Uses Google Gemini AI as primary analyzer for intelligent student interest analysis.
+Supports multi-country curricula (KCSE, Rwanda NESB, Uganda UACE, WASSCE, Cambridge)
+and multi-university catalogs (USIU-Africa, Strathmore, ALU, Makerere, Ashesi, Pan-African).
 
 Priority:
-1. Gemini AI (google-genai) - Primary, most capable
-2. OpenAI GPT-4 - Optional legacy fallback
-3. Enhanced keyword/semantic analysis - Offline fallback
+  1. Gemini AI (google-genai) — Primary
+  2. Academic Aptitude & Keyword Analysis — Robust Offline fallback
 """
 
 import os
-from typing import Tuple, List, Dict
 import json
+from typing import Tuple, List, Dict, Any
 
-# --- Optional: Gemini AI (Primary - Modern SDK) ---
+from education_systems import UNIVERSITIES, CURRICULA
+from recommendations import PROGRAMS, MAJOR_TO_SCHOOL, INTEREST_MAP, determine_best_fit
+
+# --- Gemini SDK ---
 try:
     from google import genai
     HAS_GEMINI = True
@@ -20,263 +24,310 @@ except ImportError:
     HAS_GEMINI = False
 
 
-# ==================== INTEREST TO MAJOR MAPPING ====================
+# ==================== DEFAULT USIU INTEREST -> MAJOR MAP ====================
 
-# Type definition for the mapping
-from typing import Any
 FieldData = Dict[str, Any]
 
 INTEREST_MAJOR_MAP: Dict[str, FieldData] = {
     "Technology & Engineering": {
-        "majors": [
-            "Applied Computer Technology",
-            "Artificial Intelligence (AI) & Robotics",
-            "Software Engineering",
-            "Cybersecurity",
-            "Data Science & Analytics",
-            "Information Technology"
-        ],
+        "majors": PROGRAMS["School of Science and Technology"],
         "school": "School of Science and Technology",
-        "base_confidence": 85,
-        "human_interaction": 2
+        "base_confidence": 88,
+        "human_interaction": 2,
     },
     "Health Sciences": {
-        "majors": [
-            "Nursing",
-            "Public Health",
-            "Pharmaceutical Sciences",
-            "Biomedical Sciences",
-            "Health Management",
-            "Clinical Medicine"
-        ],
-        "school": "School of Health Sciences",
-        "base_confidence": 80,
-        "human_interaction": 5
+        "majors": PROGRAMS["School of Pharmacy and Health Sciences"],
+        "school": "School of Pharmacy and Health Sciences",
+        "base_confidence": 88,
+        "human_interaction": 5,
     },
     "Business & Commerce": {
-        "majors": [
-            "International Business Administration",
-            "Accounting",
-            "Finance",
-            "Entrepreneurship",
-            "Marketing Management",
-            "Supply Chain Management"
-        ],
+        "majors": PROGRAMS["Chandaria School of Business"],
         "school": "Chandaria School of Business",
-        "base_confidence": 75,
-        "human_interaction": 4
+        "base_confidence": 85,
+        "human_interaction": 4,
     },
     "Humanities & Social Sciences": {
-        "majors": [
-            "International Relations",
-            "Political Science",
-            "History & Archaeology",
-            "Psychology",
-            "Sociology",
-            "Development Studies"
-        ],
+        "majors": PROGRAMS["School of Humanities and Social Sciences"],
         "school": "School of Humanities and Social Sciences",
-        "base_confidence": 75,
-        "human_interaction": 5
+        "base_confidence": 82,
+        "human_interaction": 5,
     },
     "Creative Arts & Media": {
-        "majors": [
-            "Communication & Media Studies",
-            "Graphic Design & Multimedia",
-            "Film & Digital Production",
-            "Journalism & Broadcasting",
-            "Creative Writing",
-            "Visual Arts"
-        ],
-        "school": "School of Humanities and Social Sciences",
-        "base_confidence": 70,
-        "human_interaction": 3
-    }
+        "majors": PROGRAMS["School of Communication, Cinematic and Creative Arts"],
+        "school": "School of Communication, Cinematic and Creative Arts",
+        "base_confidence": 80,
+        "human_interaction": 3,
+    },
 }
+
+VALID_MAJOR_NAMES: set = {m for data in INTEREST_MAJOR_MAP.values() for m in data["majors"]}
+
+def _build_uni_catalog_text(target_uni: str = "usiu") -> Tuple[str, set, Dict[str, str]]:
+    """Builds program text and lookup sets for the specified university."""
+    uni_data = UNIVERSITIES.get(target_uni, UNIVERSITIES["usiu"])
+    catalog = uni_data.get("catalog", {})
+    
+    # If Pan-African, combine all
+    if target_uni == "all" or not catalog:
+        lines = []
+        valid_majors = set()
+        major_to_school = {}
+        for uid, udata in UNIVERSITIES.items():
+            if uid == "all":
+                continue
+            u_name = udata["name"]
+            for school, majors in udata.get("catalog", {}).items():
+                for major in majors:
+                    display_m = f"{major} — {u_name}"
+                    lines.append(f"- {display_m} ({school})")
+                    valid_majors.add(display_m)
+                    valid_majors.add(major)
+                    major_to_school[display_m] = f"{school}, {u_name}"
+                    major_to_school[major] = f"{school}, {u_name}"
+        return "\n".join(lines), valid_majors, major_to_school
+
+    lines = []
+    valid_majors = set()
+    major_to_school = {}
+    for school, majors in catalog.items():
+        for major in majors:
+            lines.append(f"- {major} ({school})")
+            valid_majors.add(major)
+            major_to_school[major] = f"{school}, {uni_data['name']}"
+    return "\n".join(lines), valid_majors, major_to_school
+
+
+# Reliable modern Gemini models in order of priority
+GEMINI_MODELS = [
+    "gemini-3.5-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-2.5-flash",
+    "gemini-3.8-flash"
+]
+
 
 # ==================== INTERACTION PREFERENCE DETECTION ====================
 
 def detect_interaction_preference(text: str) -> Tuple[int, str]:
-    """Detect student's preference for human interaction."""
+    """Detect student's preference for human vs. independent work."""
     text = text.lower().strip()
-    
+
     high_words = {
         'people', 'help', 'helping', 'communication', 'communicate', 'interact',
         'teamwork', 'team', 'collaboration', 'collaborate', 'social', 'community',
-        'leadership', 'lead', 'leading', 'guide', 'mentor', 'coaching', 'client',
-        'customer', 'service', 'presentation', 'counseling', 'advising', 'teaching',
-        'networking', 'relationship', 'empathy', 'psychology', 'influence', 'inspire',
-        'motivate', 'support'
+        'leadership', 'lead', 'leading', 'guide', 'mentor', 'coaching',
+        'customer', 'service', 'presentation', 'counseling', 'teaching',
+        'networking', 'relationship', 'empathy', 'inspire', 'motivate', 'support'
     }
-
     low_words = {
         'alone', 'solitary', 'independent', 'solo', 'individual', 'data',
         'analysis', 'analytical', 'research', 'coding', 'programming', 'technical',
         'computer', 'algorithm', 'logical', 'debugging', 'automation', 'experiment',
-        'laboratory', 'theory', 'structured', 'precise', 'accurate'
+        'systems', 'software', 'hardware', 'math', 'statistics', 'deep focus'
     }
 
-    avoid_phrases = {
+    # Avoid people keywords
+    interaction_avoid = {
         'not good with people', 'avoid people', 'hate people',
         'people drain me', 'prefer alone', 'introvert', 'shy'
     }
 
-    high_count = sum(1 for w in high_words if w in text.split() or f' {w} ' in f' {text} ')
-    low_count = sum(1 for w in low_words if w in text.split() or f' {w} ' in f' {text} ')
-    avoid_count = sum(1 for p in avoid_phrases if p in text)
+    high_count = sum(1 for w in high_words if w in text)
+    low_count  = sum(1 for w in low_words  if w in text)
+    avoid_count = sum(1 for w in interaction_avoid if w in text)
 
+    # Calculate preference score (-2 to +2)
     if avoid_count > 0:
-        return -2, "Strongly prefers working independently"
+        score = -2
+        pref_type = "Strongly prefers working independently"
     elif low_count > high_count + 1:
-        return -1, "Prefers independent/analytical work"
+        score = -1
+        pref_type = "Prefers independent/analytical work"
     elif high_count > low_count + 1:
-        return 2, "Very people-oriented, loves interaction"
+        score = 2
+        pref_type = "Very people-oriented, loves interaction"
     elif high_count > 0:
-        return 1, "Enjoys some human interaction"
+        score = 1
+        pref_type = "Enjoys some human interaction"
     else:
-        return 0, "Flexible/no clear preference"
+        score = 0
+        pref_type = "Flexible/no clear preference"
+
+    return score, pref_type
 
 
-def adjust_confidence_for_interaction(base_confidence: float, interaction_score: int, category: str) -> Tuple[float, str]:
-    """Adjust confidence based on alignment between student interaction preference and field."""
-    # Defensive lookup
-    field_data = INTEREST_MAJOR_MAP.get(category, {})
-    category_interaction = int(field_data.get("human_interaction", 3))
+def adjust_confidence_for_interaction(
+    base_confidence: float,
+    interaction_score: int,
+    field_category: str
+) -> Tuple[float, str]:
+    """Fine-tunes recommendation confidence based on social preference alignment."""
+    field_data = INTEREST_MAJOR_MAP.get(field_category)
+    if not field_data:
+        return base_confidence, ""
 
-    if interaction_score == 0:
-        return float(base_confidence), "No interaction preference indicated"
-
-    adjustment = 0
-    reason = "Moderate alignment with your interaction preference"
-
-    if interaction_score > 0:
-        if category_interaction >= 4:
-            adjustment, reason = 10, "Strong alignment: You're people-oriented and this field is collaborative"
-        elif category_interaction <= 2:
-            adjustment, reason = -5, "Consider: This field is more independent than collaborative"
-    elif interaction_score < 0:
-        if category_interaction <= 2:
-            adjustment, reason = 8, "Great fit: This field offers independent work opportunities"
-        elif category_interaction >= 4:
-            adjustment, reason = -8, "Advisory: This field requires significant people interaction"
-
-    final_confidence = max(30, min(99, int(base_confidence + adjustment)))
-    return float(final_confidence), reason
+    expected = field_data["human_interaction"]
+    if interaction_score > 0 and expected >= 4:
+        return min(base_confidence + 2.0, 95.0), "Strong alignment between collaborative preference and field dynamics"
+    elif interaction_score < 0 and expected <= 3:
+        return min(base_confidence + 2.0, 95.0), "Strong alignment with independent focus in this field"
+    return base_confidence, ""
 
 
-def rank_majors_by_interaction(majors: List[str], category: str, interaction_score: int) -> List[str]:
-    """Re-rank majors based on student's interaction preference."""
-    major_interaction_levels = {
-        "Applied Computer Technology": 2, "Artificial Intelligence (AI) & Robotics": 1,
-        "Software Engineering": 2, "Cybersecurity": 1, "Data Science & Analytics": 1,
-        "Information Technology": 2, "Nursing": 5, "Public Health": 4,
-        "Pharmaceutical Sciences": 2, "Biomedical Sciences": 1, "Health Management": 4,
-        "Clinical Medicine": 5, "International Business Administration": 5,
-        "Accounting": 2, "Finance": 2, "Entrepreneurship": 4, "Marketing Management": 5,
-        "Supply Chain Management": 3, "International Relations": 5, "Political Science": 4,
-        "History & Archaeology": 2, "Psychology": 4, "Sociology": 4,
-        "Development Studies": 5, "Communication & Media Studies": 5,
-        "Graphic Design & Multimedia": 2, "Film & Digital Production": 3,
-        "Journalism & Broadcasting": 4, "Creative Writing": 1, "Visual Arts": 1,
-    }
-    if interaction_score == 0: return majors
-    scored = []
-    for major in majors:
-        level = major_interaction_levels.get(major, 3)
-        score = level if interaction_score > 0 else (6 - level)
-        scored.append((major, score))
-    scored.sort(key=lambda x: x[1], reverse=True)
-    return [m for m, _ in scored]
+# ==================== GEMINI AI ANALYSIS ====================
 
+def analyze_interest_with_gemini(
+    interest_text: str,
+    scores: Dict = None,
+    username: str = "Student",
+    target_uni: str = "usiu",
+    country: str = "Kenya",
+    curriculum_name: str = "KCSE"
+) -> Tuple[str | None, float, List[str], str, str, str]:
+    """
+    Use Gemini AI to analyze student interests, academic strengths,
+    and recommend a verified university major based on their country and target university.
+    """
+    if not HAS_GEMINI:
+        return None, 0, [], "", "", ""
 
-# ==================== GEMINI AI ANALYSIS (Modern SDK) ====================
+    api_key = os.getenv('GEMINI_API_KEY', '').strip()
+    if not api_key:
+        return None, 0, [], "", "", ""
 
-def analyze_interest_with_gemini(interest_text: str, scores: Dict = None, username: str = "Student") -> Tuple[str | None, float, List[str], str, str]:
-    """Use Gemini AI to analyze interests and recommend a field."""
-    if not HAS_GEMINI: return None, 0, [], "", ""
-    api_key = os.getenv('GEMINI_API_KEY')
-    if not api_key: return None, 0, [], "", ""
+    uni_data = UNIVERSITIES.get(target_uni, UNIVERSITIES["usiu"])
+    uni_name = uni_data["name"]
+    majors_text, valid_majors, major_to_school = _build_uni_catalog_text(target_uni)
 
     try:
         client = genai.Client(api_key=api_key)
-        grade_map = {12:'A', 11:'A-', 10:'B+', 9:'B', 8:'B-', 7:'C+', 6:'C', 5:'C-', 4:'D+', 3:'D', 2:'D-', 1:'E'}
+
         grade_context = ""
         if scores:
-            grade_lines = [f"{k}: {grade_map.get(v, v)}" for k, v in scores.items() if v > 0]
-            grade_context = f"\nStudent Grades: {', '.join(grade_lines)}"
+            grade_lines = [f"{k.capitalize()}: {v} points (0-12 scale)" for k, v in scores.items() if v > 0]
+            grade_context = f"\nStudent High School Academic Profile ({curriculum_name}, {country}): {', '.join(grade_lines)}"
 
-        # Prepare major list for Gemini
-        major_list = []
-        for cat, data in INTEREST_MAJOR_MAP.items():
-            for m in data['majors']:
-                major_list.append(f"- {m} ({data['school']})")
-        
-        majors_text = "\n".join(major_list)
+        prompt = f"""You are a senior, encouraging Academic Advisor helping high school graduates transition into university.
+The student is applying from {country} with a background in the {curriculum_name} curriculum.
+Target University: {uni_name}.
 
-        prompt = f"""You are a professional Academic Advisor at USIU-Africa. 
-Analysis Task: Recommend the MOST relevant MAJOR from the list below based on the student's INTEREST STATEMENT. 
+Your task: Analyze this student's academic performance and personal interest statement, and recommend exactly ONE official major from the verified university catalog below.
 
-Majors and Schools at USIU-Africa:
+VERIFIED UNIVERSITY PROGRAM CATALOG (select ONLY from this list):
 {majors_text}
 
-Rules:
-1. PERSONALIZATION: Start your message with "Hi {username}, ..." 
-2. UNIQUE MESSAGE: Do NOT repeat the same phrases. Every advisory message must be unique and feel like a real conversation.
-3. ADVICE: PRIORITIZE career goals over grades. If they say "manager", favor Business majors even if their Science grades are elite.
-4. ACKNOWLEDGEMENT: If a student has elite grades (mostly As), acknowledge that they are capable of any field, but you are selecting based on their specific passion.
-5. EVIDENCE: Explicitly reference specific words from the student's interest statement in your reasoning.
-6. Your response must be in English.
+Advisory Principles:
+1. PERSONALIZATION: Address the student warmly by name: "Hi {username}, ..."
+2. HIGH ACHIEVERS / UNDECIDED STUDENTS:
+   - If the student is undecided, unsure, or says things like "not sure", "don't know", or "exploring":
+     CELEBRATE their academic versatility! DO NOT default to generic business degrees unless their grades actually indicate business strengths.
+     Look at their highest grades. If they have top STEM grades (Math, Sciences, Tech), recommend high-impact, prestigious programs like Computer Science, Software Engineering, Pharmacy, or Engineering.
+     Assign an authoritative confidence score (86-94%) reflecting their proven competence.
+3. CLEAR CAREER INTEREST: If the student describes a clear passion (e.g. healthcare, business, creative arts, international relations), align with their passion while verifying their academic foundation.
+4. REASONING QUALITY: Explain clearly WHY this major at {uni_name} fits their grades, curriculum strengths, and career aspirations.
+5. MAJOR CONSTRAINT: recommended_major MUST match EXACTLY one of the program names listed in the catalog above.
 
 {grade_context}
-Interest Statement: "{interest_text}"
+Student Interest Statement: "{interest_text[:1500]}"
 
-Return ONLY JSON with these exact keys:
+Return ONLY valid JSON with these exact keys:
 {{
   "category": "One of: Technology & Engineering, Health Sciences, Business & Commerce, Humanities & Social Sciences, Creative Arts & Media",
-  "recommended_major": "The specific major name from the list provided",
-  "confidence": 70-95,
-  "reasoning": "A unique, personalized explanation connecting their interests and grades.",
-  "key_interests": ["3-4 relevant keywords from their text"]
+  "recommended_major": "EXACT major name from the catalog above",
+  "confidence": <integer 75-95>,
+  "reasoning": "Inspirational, conversational guidance starting with Hi {username}...",
+  "key_interests": ["keyword1", "keyword2", "keyword3"]
 }}"""
 
-        response = client.models.generate_content(
-            model="gemini-flash-latest",
-            contents=prompt,
-            config={"response_mime_type": "application/json"}
-        )
-        
+        # Try models in order of resilience
+        response = None
+        for model_name in GEMINI_MODELS:
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                    config={"response_mime_type": "application/json"}
+                )
+                if response and response.text:
+                    break
+            except Exception:
+                continue
+
+        if not response or not response.text:
+            return None, 0, [], "", "", ""
+
         result = json.loads(response.text)
+
         category = result.get("category", "").strip()
-        
-        # Validating category
-        valid = list(INTEREST_MAJOR_MAP.keys())
-        if category not in valid:
-            for v in valid:
-                if v.lower() in category.lower(): category = v; break
-            else: return None, 0, [], "", ""
+        valid_categories = list(INTEREST_MAJOR_MAP.keys())
+        if category not in valid_categories:
+            for v in valid_categories:
+                if v.lower() in category.lower() or category.lower() in v.lower():
+                    category = v
+                    break
+            else:
+                return None, 0, [], "", "", ""
 
-        return category, float(result.get("confidence", 70)), result.get("key_interests", []), result.get("reasoning", ""), result.get("recommended_major", "")
+        recommended_major = result.get("recommended_major", "").strip()
+        matched_school = ""
+
+        # Normalize recommended major against valid catalog
+        if recommended_major in valid_majors:
+            matched_school = major_to_school.get(recommended_major, uni_name)
+        else:
+            for valid_m in valid_majors:
+                if recommended_major.lower() in valid_m.lower() or valid_m.lower() in recommended_major.lower():
+                    recommended_major = valid_m
+                    matched_school = major_to_school.get(valid_m, uni_name)
+                    break
+            else:
+                recommended_major = ""
+
+        conf = float(result.get("confidence", 85))
+        conf = max(75, min(95, conf))
+
+        return (
+            category,
+            conf,
+            result.get("key_interests", []),
+            result.get("reasoning", ""),
+            recommended_major,
+            matched_school
+        )
+
     except Exception as e:
-        print(f"Gemini error: {e}")
-        return None, 0, [], "", ""
+        print(f"[Gemini] Error during analysis: {e}")
+        return None, 0, [], "", "", ""
 
 
-# ==================== OFFLINE FALLBACK ====================
+# ==================== ROBUST OFFLINE ACADEMIC ANALYSIS ====================
 
-def _offline_analysis(text: str, grades: Dict, interaction_score: int, interaction_pref: str) -> Tuple[str, float, List[str], str]:
-    """Very simple keyword fallback when AI is unavailable."""
+def _offline_analysis(
+    text: str,
+    grades: Dict,
+    interaction_score: int,
+    interaction_pref: str,
+    username: str = "Student",
+    target_uni: str = "usiu",
+    country: str = "Kenya",
+    curriculum_name: str = "KCSE"
+) -> Tuple[str, float, List[str], str, str, str]:
+    """
+    Intelligent fallback when Gemini is offline.
+    Evaluates both keyword interests AND academic cluster scores for the target university.
+    """
     keywords = {
-        "Technology & Engineering": ['tech', 'code', 'computer', 'software', 'ai'],
-        "Health Sciences": ['doctor', 'nurse', 'medicine', 'health'],
-        "Business & Commerce": ['business', 'finance', 'marketing', 'accounting'],
-        "Humanities & Social Sciences": ['politics', 'social', 'history', 'law'],
-        "Creative Arts & Media": ['film', 'design', 'art', 'media']
+        "Technology & Engineering":    ['tech', 'code', 'computer', 'software', 'ai', 'engineering', 'programming', 'robot', 'data'],
+        "Health Sciences":             ['doctor', 'nurse', 'medicine', 'health', 'pharmacy', 'hospital', 'patient', 'clinic', 'bio'],
+        "Business & Commerce":         ['business', 'finance', 'marketing', 'accounting', 'management', 'entrepreneur', 'money', 'trade'],
+        "Humanities & Social Sciences": ['politics', 'social', 'history', 'law', 'justice', 'psychology', 'relations', 'society', 'diplomacy'],
+        "Creative Arts & Media":       ['film', 'design', 'art', 'media', 'animation', 'journalism', 'writing', 'directing'],
     }
-    
-    best_cat, best_count = "Undecided", 0
-    found_kws = []
+
     text_lower = text.lower()
-    
+    best_cat, best_count, found_kws = None, 0, []
+
     for cat, kws in keywords.items():
         matches = [kw for kw in kws if kw in text_lower]
         if len(matches) > best_count:
@@ -284,68 +335,137 @@ def _offline_analysis(text: str, grades: Dict, interaction_score: int, interacti
             best_cat = cat
             found_kws = matches
 
-    conf = 60 if best_count > 0 else 30
-    reasoning = generate_analytical_reasoning(best_cat, found_kws, grades, interaction_pref, conf)
-    return best_cat, conf, found_kws, reasoning
+    # If student is undecided or has no keyword matches, use academic cluster analysis
+    if best_count == 0 or not best_cat or any(w in text_lower for w in ['not sure', 'undecided', "don't know", 'unsure', 'exploring']):
+        best_code, best_field, field_scores = determine_best_fit(grades)
+        best_cat = best_field
+        found_kws = ["Academic Strengths", "Multidisciplinary Aptitude"]
+
+    taken_scores = [v for v in grades.values() if isinstance(v, (int, float)) and v > 0]
+    avg_score = sum(taken_scores) / len(taken_scores) if taken_scores else 6.0
+
+    if avg_score >= 11:
+        conf = 92.0
+    elif avg_score >= 9:
+        conf = 86.0
+    elif avg_score >= 7:
+        conf = 80.0
+    else:
+        conf = 72.0
+
+    uni_data = UNIVERSITIES.get(target_uni, UNIVERSITIES["usiu"])
+    uni_name = uni_data["name"]
+
+    # Select major from target university matching the category
+    major_candidate = ""
+    school_candidate = uni_name
+    catalog = uni_data.get("catalog", {})
+
+    category_to_school_keywords = {
+        "Technology & Engineering": ["science", "computing", "engineering", "technology"],
+        "Health Sciences": ["health", "pharmacy", "medical"],
+        "Business & Commerce": ["business", "commerce", "management"],
+        "Humanities & Social Sciences": ["humanities", "social", "law", "arts"],
+        "Creative Arts & Media": ["communication", "cinematic", "creative", "media"]
+    }
+
+    match_keywords = category_to_school_keywords.get(best_cat, ["science"])
+    for school_name, majors in catalog.items():
+        if any(kw in school_name.lower() for kw in match_keywords):
+            if majors:
+                major_candidate = majors[0]
+                school_candidate = f"{school_name}, {uni_name}"
+                break
+
+    if not major_candidate and catalog:
+        # Default to first available program
+        first_school = list(catalog.keys())[0]
+        major_candidate = catalog[first_school][0]
+        school_candidate = f"{first_school}, {uni_name}"
+
+    reasoning = (
+        f"Hi {username}, based on your {curriculum_name} academic strengths from {country}, "
+        f"your profile aligns exceptionally well with {best_cat}. "
+        f"With an average normalized subject score of {avg_score:.1f} points, "
+        f"we recommend pursuing this pathway at {uni_name}."
+    )
+
+    return best_cat, conf, found_kws, reasoning, major_candidate, school_candidate
 
 
-def generate_analytical_reasoning(category, keywords, grades, interaction, confidence):
-    parts = [f"📌 Interests: {', '.join(keywords) if keywords else category}"]
-    if grades:
-        subj = {'math':'Math'}
-        if category == "Technology & Engineering": subj.update({'physics':'Physics'})
-        elif category == "Business & Commerce": subj.update({'tech_business':'Business'})
-        elif category == "Health Sciences": subj.update({'biology':'Bio', 'chemistry':'Chem'})
-        
-        grade_str = ", ".join([f"{v}: {grades.get(k)}" for k, v in subj.items() if grades.get(k)])
-        if grade_str: parts.append(f"📊 Grades: {grade_str}")
-    
-    parts.append(f"🎯 Confidence: {confidence}%")
-    return " | ".join(parts)
+# ==================== MAIN ENTRY POINT ====================
 
+def analyze_interest_text_advanced(
+    interest_text: str,
+    grades_dict: Dict = None,
+    username: str = "Student",
+    target_uni: str = "usiu",
+    country: str = "Kenya",
+    curriculum_id: str = "ke_kcse"
+) -> Tuple[str, float, List[str], str, str, str]:
+    """
+    Main entry point for AI analysis.
+    Tries resilient Gemini models first, falls back to academic cluster analysis.
+    Returns: (category, confidence, keywords, reasoning, recommended_major, school)
+    """
+    curr = CURRICULA.get(curriculum_id, CURRICULA["ke_kcse"])
+    curriculum_name = curr["name"]
 
-def analyze_interest_text_advanced(interest_text: str, grades_dict: Dict = None, username: str = "Student") -> Tuple[str, float, List[str], str, str]:
-    """Main entry point: Attempts Gemini analysis, falls back to keywords."""
     interaction_score, interaction_pref = detect_interaction_preference(interest_text)
-    
-    # 1. Gemini AI (Primary)
-    cat, conf, kws, reason, major = analyze_interest_with_gemini(interest_text, grades_dict, username)
-    if cat:
-        conf, note = adjust_confidence_for_interaction(conf, interaction_score, cat)
-        final_statement = f"{reason} Furthermore, {note.lower()}." if note and "no interaction" not in note.lower() else reason
-        return cat, conf, kws, final_statement, major
 
-    # 2. Offline Fallback
-    cat, conf, kws, reason = _offline_analysis(interest_text, grades_dict, interaction_score, interaction_pref)
-    return cat, conf, kws, reason, ""
+    # 1. Try Gemini (Primary)
+    cat, conf, kws, reason, major, school = analyze_interest_with_gemini(
+        interest_text=interest_text,
+        scores=grades_dict,
+        username=username,
+        target_uni=target_uni,
+        country=country,
+        curriculum_name=curriculum_name
+    )
+    if cat and major:
+        conf, note = adjust_confidence_for_interaction(conf, interaction_score, cat)
+        final_statement = reason
+        if note and "no interaction" not in note.lower():
+            final_statement = f"{reason} {note}."
+        return cat, conf, kws, final_statement, major, school
+
+    # 2. Offline fallback
+    cat, conf, kws, reason, major, school = _offline_analysis(
+        text=interest_text,
+        grades=grades_dict or {},
+        interaction_score=interaction_score,
+        interaction_pref=interaction_pref,
+        username=username,
+        target_uni=target_uni,
+        country=country,
+        curriculum_name=curriculum_name
+    )
+    return cat, conf, kws, reason, major, school
 
 
 def get_major_recommendation(interest_category: str, confidence: float, grades_dict: Dict = None, interaction_score: int = 0) -> Dict:
     data = INTEREST_MAJOR_MAP.get(interest_category, INTEREST_MAJOR_MAP["Humanities & Social Sciences"])
-    ranked = rank_majors_by_interaction(data["majors"], interest_category, interaction_score)
-    
-    final_conf = data["base_confidence"]
-    if grades_dict:
-        # FIX: Lowercase keys matching app.py
-        rel = []
-        if interest_category == "Technology & Engineering": rel = [grades_dict.get('math', 0), grades_dict.get('physics', 0)]
-        elif interest_category == "Health Sciences": rel = [grades_dict.get('biology', 0), grades_dict.get('chemistry', 0)]
-        elif interest_category == "Business & Commerce": rel = [grades_dict.get('math', 0), grades_dict.get('tech_business', 0)]
-        
-        valid = [v for v in rel if v > 0]
-        if valid:
-            avg = sum(valid) / len(valid)
-            if avg >= 10: final_conf += 10
-            elif avg < 6: final_conf -= 10
+    majors = data["majors"]
+
+    if interaction_score > 0:
+        majors = list(reversed(majors))
 
     return {
-        "major": ranked[0], "school": data["school"], 
-        "confidence": int((final_conf + confidence) / 2),
-        "reason": f"Based on {interest_category} profile"
+        "major":      majors[0],
+        "school":     data["school"],
+        "confidence": int(confidence),
+        "reason":     f"Based on {interest_category} profile",
     }
 
 
 def analyze_interest_text(interest_text: str):
-    cat, conf, kws, reason, major = analyze_interest_text_advanced(interest_text)
-    codes = {"Technology & Engineering": 0, "Health Sciences": 1, "Business & Commerce": 2, "Humanities & Social Sciences": 3, "Creative Arts & Media": 4}
-    return codes.get(cat, -1), kws
+    cat, conf, kws, reason, major, school = analyze_interest_text_advanced(interest_text)
+    code_map = {
+        "Technology & Engineering": 0,
+        "Health Sciences": 1,
+        "Business & Commerce": 2,
+        "Humanities & Social Sciences": 3,
+        "Creative Arts & Media": 4,
+        "Undecided": -1
+    }
+    return code_map.get(cat, -1), kws
