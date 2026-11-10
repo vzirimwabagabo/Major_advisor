@@ -340,6 +340,10 @@
             </div>
         </div>
 
+        {% set sel_curr_id = form_data.curriculum or 'ke_kcse' %}
+        {% set curr_data = (curricula or {})[sel_curr_id] or (curricula or {})['ke_kcse'] %}
+        {% set grade_scale = curr_data.grade_scale if curr_data else [] %}
+
         <div class="form-grid">
             
             <!-- GROUP I: COMPULSORY SUBJECTS -->
@@ -352,7 +356,10 @@
             <div id="slot-math">
                 <label id="lbl-math" for="math">Mathematics *</label>
                 <select id="math" name="math" required>
-                    <!-- Populated dynamically via JS -->
+                    <option value="" disabled {% if not form_data.math %}selected{% endif %}>-- Select Grade --</option>
+                    {% for val, label, pts in grade_scale %}
+                        <option value="{{ val }}" {% if form_data.math == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
                 </select>
                 <div class="help-text" id="help-math">Compulsory quantitative requirement.</div>
             </div>
@@ -361,7 +368,10 @@
             <div id="slot-english">
                 <label id="lbl-english" for="english">English *</label>
                 <select id="english" name="english" required>
-                    <!-- Populated dynamically via JS -->
+                    <option value="" disabled {% if not form_data.english %}selected{% endif %}>-- Select Grade --</option>
+                    {% for val, label, pts in grade_scale %}
+                        <option value="{{ val }}" {% if form_data.english == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
                 </select>
                 <div class="help-text" id="help-english">Language proficiency requirement.</div>
             </div>
@@ -370,7 +380,10 @@
             <div id="slot-kiswahili">
                 <label id="lbl-kiswahili" for="kiswahili">Second Language / Core Subject *</label>
                 <select id="kiswahili" name="kiswahili">
-                    <!-- Populated dynamically via JS -->
+                    <option value="" disabled {% if not form_data.kiswahili %}selected{% endif %}>-- Select Grade --</option>
+                    {% for val, label, pts in grade_scale %}
+                        <option value="{{ val }}" {% if form_data.kiswahili == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
                 </select>
                 <div class="help-text" id="help-kiswahili">National curriculum subject.</div>
             </div>
@@ -379,7 +392,10 @@
             <div id="slot-humanities">
                 <label id="lbl-humanities" for="humanities">Humanities / Social Sciences *</label>
                 <select id="humanities" name="humanities" required>
-                    <!-- Populated dynamically via JS -->
+                    <option value="" disabled {% if not form_data.humanities %}selected{% endif %}>-- Select Grade --</option>
+                    {% for val, label, pts in grade_scale %}
+                        <option value="{{ val }}" {% if form_data.humanities == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
                 </select>
                 <div class="help-text" id="help-humanities">Highest score in Humanities / Social Sciences.</div>
             </div>
@@ -394,7 +410,10 @@
             <div id="slot-biology">
                 <label id="lbl-biology" for="biology">Biology</label>
                 <select id="biology" name="biology">
-                    <!-- Populated dynamically via JS -->
+                    <option value="NOT TAKEN" {% if not form_data.biology or form_data.biology == 'NOT TAKEN' %}selected{% endif %}>Not Taken (0 points)</option>
+                    {% for val, label, pts in grade_scale %}
+                        <option value="{{ val }}" {% if form_data.biology == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
                 </select>
                 <div class="help-text" id="help-biology">Health, Biological &amp; Life Sciences prerequisite.</div>
             </div>
@@ -403,7 +422,10 @@
             <div id="slot-physics">
                 <label id="lbl-physics" for="physics">Physics</label>
                 <select id="physics" name="physics">
-                    <!-- Populated dynamically via JS -->
+                    <option value="NOT TAKEN" {% if not form_data.physics or form_data.physics == 'NOT TAKEN' %}selected{% endif %}>Not Taken (0 points)</option>
+                    {% for val, label, pts in grade_scale %}
+                        <option value="{{ val }}" {% if form_data.physics == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
                 </select>
                 <div class="help-text" id="help-physics">Key for Engineering, Software &amp; Physical Sciences.</div>
             </div>
@@ -412,7 +434,10 @@
             <div id="slot-chemistry">
                 <label id="lbl-chemistry" for="chemistry">Chemistry</label>
                 <select id="chemistry" name="chemistry">
-                    <!-- Populated dynamically via JS -->
+                    <option value="NOT TAKEN" {% if not form_data.chemistry or form_data.chemistry == 'NOT TAKEN' %}selected{% endif %}>Not Taken (0 points)</option>
+                    {% for val, label, pts in grade_scale %}
+                        <option value="{{ val }}" {% if form_data.chemistry == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
                 </select>
                 <div class="help-text" id="help-chemistry">Pharmacy, Medicine &amp; Chemical Sciences.</div>
             </div>
@@ -421,7 +446,10 @@
             <div id="slot-tech_bus">
                 <label id="lbl-tech_bus" for="tech_bus">Technical / Business / Applied Elective</label>
                 <select id="tech_bus" name="tech_bus">
-                    <!-- Populated dynamically via JS -->
+                    <option value="NOT TAKEN" {% if not form_data.tech_bus or form_data.tech_bus == 'NOT TAKEN' %}selected{% endif %}>Not Taken (0 points)</option>
+                    {% for val, label, pts in grade_scale %}
+                        <option value="{{ val }}" {% if form_data.tech_bus == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
                 </select>
                 <div class="help-text" id="help-tech_bus">Computing, Economics, Entrepreneurship, Accounting.</div>
             </div>
@@ -627,16 +655,22 @@
         document.getElementById('interest').focus();
     }
 
-    // Initialize on DOM load
-    window.addEventListener('DOMContentLoaded', () => {
-        const initialCurriculum = (SAVED_FORM && SAVED_FORM.curriculum) || document.getElementById('curriculum').value || 'ke_kcse';
+    // Safe initialization that works regardless of DOM timing
+    function initAdvisor() {
+        const initialCurriculum = (SAVED_FORM && SAVED_FORM.curriculum) || (document.getElementById('curriculum') && document.getElementById('curriculum').value) || 'ke_kcse';
         onCurriculumChange(initialCurriculum);
 
         const resultsEl = document.getElementById('results');
         if (resultsEl) {
             resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-    });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAdvisor);
+    } else {
+        initAdvisor();
+    }
 </script>
 
 </body>
