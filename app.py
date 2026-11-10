@@ -276,6 +276,18 @@ def favicon():
     return '', 204
 
 # ============================================================
+# TEMPLATE CONTEXT INJECTION (Always available in templates)
+# ============================================================
+@app.context_processor
+def inject_education_data():
+    return {
+        'curricula': CURRICULA,
+        'universities': UNIVERSITIES,
+        'country_options': get_country_options()
+    }
+
+
+# ============================================================
 # STUDENT ROUTES
 # ============================================================
 @app.route('/')
