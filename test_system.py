@@ -132,6 +132,23 @@ class TestSecurityFunctions(unittest.TestCase):
         # Valid password
         self.assertIsNone(validate_password("ValidP@ssw0rd!"))
 
+    def test_session_and_security_configuration(self):
+        from app import app, login_manager
+        from datetime import timedelta
+
+        # Session timeout is 30 minutes
+        self.assertEqual(app.config['PERMANENT_SESSION_LIFETIME'], timedelta(minutes=30))
+        # Rolling session resets timer on user activity
+        self.assertTrue(app.config['SESSION_REFRESH_EACH_REQUEST'])
+        # Cookie security
+        self.assertTrue(app.config['SESSION_COOKIE_HTTPONLY'])
+        self.assertEqual(app.config['SESSION_COOKIE_SAMESITE'], 'Lax')
+        # Session protection against hijacking
+        self.assertEqual(login_manager.session_protection, 'strong')
+        # Database pool resilience
+        self.assertTrue(app.config['SQLALCHEMY_ENGINE_OPTIONS']['pool_pre_ping'])
+        self.assertEqual(app.config['SQLALCHEMY_ENGINE_OPTIONS']['pool_recycle'], 280)
+
 
 class TestInteractionLogic(unittest.TestCase):
     def test_interaction_detection(self):

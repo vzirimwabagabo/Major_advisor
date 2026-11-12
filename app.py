@@ -23,7 +23,7 @@ if hasattr(sys.stdout, 'reconfigure'):
 
 from flask import (
     Flask, render_template, url_for, redirect,
-    request, flash, Response
+    request, flash, Response, session, abort
 )
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import (
@@ -82,8 +82,9 @@ app.config['SECRET_KEY'] = _secret
 app.config['SESSION_COOKIE_SECURE']   = not DEBUG   # HTTPS-only in production
 app.config['SESSION_COOKIE_HTTPONLY'] = True         # No JS access to session cookie
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'       # CSRF mitigation
-app.config['PERMANENT_SESSION_LIFETIME'] = 3600      # 1-hour session timeout
-app.config['WTF_CSRF_TIME_LIMIT'] = 3600             # CSRF token expires after 1 hour
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)  # 30-minute inactivity timeout
+app.config['SESSION_REFRESH_EACH_REQUEST'] = True                 # Rolling session: resets timer on activity
+app.config['WTF_CSRF_TIME_LIMIT'] = 1800                          # CSRF token aligns with session (30 min)
 
 # ============================================================
 # DATABASE
@@ -116,13 +117,16 @@ if not db_uri:
 app.config['SQLALCHEMY_DATABASE_URI']        = db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-if not DEBUG:
-    from sqlalchemy.pool import NullPool
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'pool_recycle': 300,
-        'pool_pre_ping': True,
-        'poolclass': NullPool,
-    }
+# Resilient connection pooling with pre-ping and idle recycling
+engine_options = {
+    'pool_recycle': 280,
+    'pool_pre_ping': True,
+}
+if not db_uri.startswith('sqlite'):
+    engine_options['pool_size'] = 10
+    engine_options['max_overflow'] = 20
+
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = engine_options
 
 # ============================================================
 # EXTENSIONS
@@ -132,7 +136,9 @@ bcrypt       = Bcrypt(app)
 csrf         = CSRFProtect(app)          # CSRF protection on ALL forms
 login_manager = LoginManager(app)
 login_manager.login_view    = 'login'
-login_manager.login_message = "Please log in to access the AI Advisor."
+login_manager.login_message = "Your session has timed out or you are not logged in. Please log in to continue."
+login_manager.login_message_category = "info"
+login_manager.session_protection = 'strong'  # Anti-session hijacking (tracks IP and User-Agent)
 
 # Rate limiter — uses client IP address
 limiter = Limiter(
@@ -519,6 +525,7 @@ def login():
         # Generic message — don't reveal which field is wrong (enumeration attack)
         user = User.query.filter_by(email=email).first()
         if user and user.check_password(password):
+            session.permanent = True  # Enforce 30-minute inactivity timeout
             login_user(user)
             flash('✅ Login successful! Welcome back.', 'success')
             next_page = request.args.get('next')
@@ -579,6 +586,7 @@ def register():
 @app.route('/logout')
 @login_required
 def logout():
+    session.clear()
     logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('login'))
