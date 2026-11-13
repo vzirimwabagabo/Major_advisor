@@ -15,6 +15,17 @@
         .warning-box .highlight { font-weight: bold; color: #dc3545; }
         input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         input:focus { border-color: #dc3545; outline: none; }
+        
+        .password-wrapper { position: relative; width: 100%; margin: 10px 0; }
+        .password-wrapper input { width: 100%; padding: 12px 42px 12px 12px; margin: 0; }
+        .toggle-password {
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+            background: transparent; border: none; padding: 4px; margin: 0; width: auto;
+            cursor: pointer; color: #777; display: flex; align-items: center; justify-content: center;
+        }
+        .toggle-password:hover { color: #dc3545; background: transparent; }
+        .toggle-password:focus { outline: none; }
+
         .button-group { display: flex; gap: 10px; margin-top: 20px; }
         .btn-danger { flex: 1; background-color: #dc3545; color: white; padding: 12px; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; font-weight: bold; }
         .btn-danger:hover { background-color: #c82333; }
@@ -53,7 +64,15 @@
 
     <form method="POST" action="/delete_account">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        <input type="password" name="password" placeholder="Enter your password to confirm" autocomplete="current-password" required>
+        <div class="password-wrapper">
+            <input type="password" id="delete-password" name="password" placeholder="Enter your password to confirm" autocomplete="current-password" required>
+            <button type="button" class="toggle-password" onclick="togglePasswordVisibility('delete-password', this)" aria-label="Show password" title="Show/Hide Password">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+            </button>
+        </div>
         <div class="button-group">
             <button type="submit" class="btn-danger">🗑️ Yes, Delete My Account</button>
             <a href="{{ url_for('index') }}" class="btn-secondary">❌ Cancel</a>
@@ -62,6 +81,19 @@
 
     <a href="{{ url_for('index') }}" class="link">← Back to Dashboard</a>
 </div>
+
+<script>
+    function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+        btn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+        btn.innerHTML = isPassword
+            ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`
+            : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+    }
+</script>
 
 </body>
 </html>
