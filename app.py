@@ -109,8 +109,17 @@ if db_uri:
     db_uri += '?sslmode=require'
 
 if not db_uri:
-    instance_path = os.path.join(os.path.dirname(__file__), 'instance')
-    os.makedirs(instance_path, exist_ok=True)
+    # Serverless environments (Vercel, AWS Lambda) have a read-only filesystem except /tmp
+    is_serverless = os.getenv('VERCEL') == '1' or bool(os.getenv('AWS_LAMBDA_FUNCTION_NAME'))
+    if is_serverless:
+        instance_path = '/tmp'
+    else:
+        instance_path = os.path.join(os.path.dirname(__file__), 'instance')
+        try:
+            os.makedirs(instance_path, exist_ok=True)
+        except OSError:
+            instance_path = '/tmp'
+
     db_uri = f'sqlite:///{os.path.join(instance_path, "site.db")}'
     print(f"[INFO] Using SQLite database at: {db_uri}")
 

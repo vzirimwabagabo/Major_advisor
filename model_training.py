@@ -11,7 +11,8 @@ import pandas as pd
 
 # ==================== DATA STORAGE ====================
 
-DATA_FILE = 'student_recommendation_data.csv'
+is_serverless = os.getenv('VERCEL') == '1' or bool(os.getenv('AWS_LAMBDA_FUNCTION_NAME'))
+DATA_FILE = '/tmp/student_recommendation_data.csv' if is_serverless else os.path.join(os.path.dirname(__file__), 'student_recommendation_data.csv')
 
 
 def save_recommendation_data(student_data):
