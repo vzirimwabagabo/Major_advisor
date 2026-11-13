@@ -136,15 +136,15 @@ class TestSecurityFunctions(unittest.TestCase):
         from app import app, login_manager
         from datetime import timedelta
 
-        # Session timeout is 30 minutes
-        self.assertEqual(app.config['PERMANENT_SESSION_LIFETIME'], timedelta(minutes=30))
+        # Session timeout is 7 days to eliminate premature disconnects across multi-region serverless edge proxies
+        self.assertEqual(app.config['PERMANENT_SESSION_LIFETIME'], timedelta(days=7))
         # Rolling session resets timer on user activity
         self.assertTrue(app.config['SESSION_REFRESH_EACH_REQUEST'])
         # Cookie security
         self.assertTrue(app.config['SESSION_COOKIE_HTTPONLY'])
         self.assertEqual(app.config['SESSION_COOKIE_SAMESITE'], 'Lax')
-        # Session protection against hijacking
-        self.assertEqual(login_manager.session_protection, 'strong')
+        # Session protection: basic avoids premature session invalidation when edge proxy IPs shift
+        self.assertEqual(login_manager.session_protection, 'basic')
         # Database pool resilience
         self.assertTrue(app.config['SQLALCHEMY_ENGINE_OPTIONS']['pool_pre_ping'])
         self.assertEqual(app.config['SQLALCHEMY_ENGINE_OPTIONS']['pool_recycle'], 280)
@@ -196,6 +196,58 @@ class TestEducationSystems(unittest.TestCase):
         # Not taken / empty
         self.assertEqual(parse_curriculum_grade('ke_kcse', 'NOT TAKEN'), 0)
         self.assertEqual(parse_curriculum_grade('wa_wassce', ''), 0)
+
+    def test_dynamic_candidate_profile_extraction(self):
+        from education_systems import extract_candidate_profile
+
+        # 1. Rwanda NESB (Combinations: Math, Physics, Chemistry + GP + Eng + Sub)
+        rw_form = {
+            'rw_sub1': 'A', 'rw_sub1_name': 'Mathematics',
+            'rw_sub2': 'B', 'rw_sub2_name': 'Physics',
+            'rw_sub3': 'C', 'rw_sub3_name': 'Chemistry',
+            'rw_gp': 'B', 'rw_eng': 'A', 'rw_sub': 'S'
+        }
+        scores, summary, lines = extract_candidate_profile('rw_nesb', rw_form)
+        self.assertEqual(scores['physics'], 10)
+        self.assertEqual(scores['chemistry'], 8)
+        self.assertIn('Mathematics', summary)
+        self.assertTrue(len(lines) >= 3)
+
+        # 2. Uganda UACE (Combinations)
+        ug_form = {
+            'ug_p1': 'A', 'ug_p1_name': 'Mathematics',
+            'ug_p2': 'A', 'ug_p2_name': 'Economics',
+            'ug_p3': 'B', 'ug_p3_name': 'Geography',
+            'ug_gp': 'B', 'ug_sub_math_ict': 'A'
+        }
+        scores_ug, summary_ug, lines_ug = extract_candidate_profile('ug_uace', ug_form)
+        self.assertGreaterEqual(scores_ug['math'], 10)
+        self.assertGreaterEqual(scores_ug['tech_business'], 10)
+
+        # 3. West Africa WASSCE
+        wa_form = {
+            'wa_math': 'A1', 'wa_eng': 'B2', 'wa_civic': 'B3',
+            'wa_elec1': 'A1', 'wa_elec1_name': 'Biology',
+            'wa_elec2': 'B2', 'wa_elec2_name': 'Chemistry',
+            'wa_elec3': 'B3', 'wa_elec3_name': 'Physics'
+        }
+        scores_wa, summary_wa, lines_wa = extract_candidate_profile('wa_wassce', wa_form)
+        self.assertEqual(scores_wa['math'], 12)
+        self.assertEqual(scores_wa['english'], 11)
+        self.assertEqual(scores_wa['biology'], 12)
+        self.assertEqual(scores_wa['chemistry'], 11)
+        self.assertEqual(scores_wa['physics'], 10)
+
+        # 4. Cambridge A-Levels
+        cam_form = {
+            'cam_a1': 'A*', 'cam_a1_name': 'Mathematics (Pure & Applied)',
+            'cam_a2': 'A', 'cam_a2_name': 'Further Mathematics',
+            'cam_a3': 'A*', 'cam_a3_name': 'Physics',
+            'cam_eng': 'A'
+        }
+        scores_cam, summary_cam, lines_cam = extract_candidate_profile('intl_cambridge', cam_form)
+        self.assertGreaterEqual(scores_cam['math'], 11)
+        self.assertEqual(scores_cam['physics'], 12)
 
 
 class TestMultiUniversityAdvisor(unittest.TestCase):
