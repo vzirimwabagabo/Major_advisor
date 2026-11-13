@@ -1,9 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>All Recommendations - Admin Dashboard</title>
+{% extends "base.html" %}
+
+{% block title %}All Recommendations - Admin Dashboard{% endblock %}
+
+{% block head %}
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; }
@@ -70,8 +69,9 @@
             .main-content { margin-left: 0; width: 100%; }
         }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block body %}
 
 <div class="admin-container">
     <div class="sidebar">
@@ -191,6 +191,4 @@
 
     </div>
 </div>
-
-</body>
-</html>
+{% endblock %}

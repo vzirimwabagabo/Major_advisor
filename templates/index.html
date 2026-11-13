@@ -1,9 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pan-African AI University Major Advisor</title>
+{% extends "base.html" %}
+
+{% block title %}Pan-African AI University Major Advisor{% endblock %}
+
+{% block head %}
     <style>
         /* --- Base Styles --- */
         body { 
@@ -270,9 +269,9 @@
             .header h1 { font-size: 1.3em; }
         }
     </style>
-</head>
-<body>
+{% endblock %}
 
+{% block body %}
 <div class="container">
     
     <!-- Header Section -->
@@ -672,6 +671,4 @@
         initAdvisor();
     }
 </script>
-
-</body>
-</html>
+{% endblock %}
