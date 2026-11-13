@@ -340,120 +340,12 @@
             </div>
         </div>
 
-        {% set sel_curr_id = form_data.curriculum or 'ke_kcse' %}
-        {% set curr_data = (curricula or {})[sel_curr_id] or (curricula or {})['ke_kcse'] %}
-        {% set grade_scale = curr_data.grade_scale if curr_data else [] %}
+        <!-- Dynamic subject container — populated by JS from EDUCATION_DATA -->
+        <div id="subjects-container" class="form-grid">
+            <!-- JS renders sections here on curriculum change -->
+        </div>
 
         <div class="form-grid">
-            
-            <!-- GROUP I: COMPULSORY SUBJECTS -->
-            <div class="section-header">
-                <span id="compulsory-header-text">Group I: Compulsory &amp; Core Subjects</span>
-                <span style="font-size:0.78em; font-weight:normal; opacity:0.9;">Mandatory for degree eligibility</span>
-            </div>
-            
-            <!-- Math Slot -->
-            <div id="slot-math">
-                <label id="lbl-math" for="math">Mathematics *</label>
-                <select id="math" name="math" required>
-                    <option value="" disabled {% if not form_data.math %}selected{% endif %}>-- Select Grade --</option>
-                    {% for val, label, pts in grade_scale %}
-                        <option value="{{ val }}" {% if form_data.math == val %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-                <div class="help-text" id="help-math">Compulsory quantitative requirement.</div>
-            </div>
-
-            <!-- English Slot -->
-            <div id="slot-english">
-                <label id="lbl-english" for="english">English *</label>
-                <select id="english" name="english" required>
-                    <option value="" disabled {% if not form_data.english %}selected{% endif %}>-- Select Grade --</option>
-                    {% for val, label, pts in grade_scale %}
-                        <option value="{{ val }}" {% if form_data.english == val %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-                <div class="help-text" id="help-english">Language proficiency requirement.</div>
-            </div>
-
-            <!-- Second Language / Core Slot -->
-            <div id="slot-kiswahili">
-                <label id="lbl-kiswahili" for="kiswahili">Second Language / Core Subject *</label>
-                <select id="kiswahili" name="kiswahili">
-                    <option value="" disabled {% if not form_data.kiswahili %}selected{% endif %}>-- Select Grade --</option>
-                    {% for val, label, pts in grade_scale %}
-                        <option value="{{ val }}" {% if form_data.kiswahili == val %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-                <div class="help-text" id="help-kiswahili">National curriculum subject.</div>
-            </div>
-
-            <!-- Humanities Slot -->
-            <div id="slot-humanities">
-                <label id="lbl-humanities" for="humanities">Humanities / Social Sciences *</label>
-                <select id="humanities" name="humanities" required>
-                    <option value="" disabled {% if not form_data.humanities %}selected{% endif %}>-- Select Grade --</option>
-                    {% for val, label, pts in grade_scale %}
-                        <option value="{{ val }}" {% if form_data.humanities == val %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-                <div class="help-text" id="help-humanities">Highest score in Humanities / Social Sciences.</div>
-            </div>
-
-            <!-- GROUP II: SCIENCES & ELECTIVES -->
-            <div class="section-header">
-                <span id="electives-header-text">Group II: Pure &amp; Applied Sciences / Electives</span>
-                <span style="font-size:0.78em; font-weight:normal; opacity:0.9;">Select "Not Taken" if not studied</span>
-            </div>
-
-            <!-- Biology Slot -->
-            <div id="slot-biology">
-                <label id="lbl-biology" for="biology">Biology</label>
-                <select id="biology" name="biology">
-                    <option value="NOT TAKEN" {% if not form_data.biology or form_data.biology == 'NOT TAKEN' %}selected{% endif %}>Not Taken (0 points)</option>
-                    {% for val, label, pts in grade_scale %}
-                        <option value="{{ val }}" {% if form_data.biology == val %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-                <div class="help-text" id="help-biology">Health, Biological &amp; Life Sciences prerequisite.</div>
-            </div>
-
-            <!-- Physics Slot -->
-            <div id="slot-physics">
-                <label id="lbl-physics" for="physics">Physics</label>
-                <select id="physics" name="physics">
-                    <option value="NOT TAKEN" {% if not form_data.physics or form_data.physics == 'NOT TAKEN' %}selected{% endif %}>Not Taken (0 points)</option>
-                    {% for val, label, pts in grade_scale %}
-                        <option value="{{ val }}" {% if form_data.physics == val %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-                <div class="help-text" id="help-physics">Key for Engineering, Software &amp; Physical Sciences.</div>
-            </div>
-
-            <!-- Chemistry Slot -->
-            <div id="slot-chemistry">
-                <label id="lbl-chemistry" for="chemistry">Chemistry</label>
-                <select id="chemistry" name="chemistry">
-                    <option value="NOT TAKEN" {% if not form_data.chemistry or form_data.chemistry == 'NOT TAKEN' %}selected{% endif %}>Not Taken (0 points)</option>
-                    {% for val, label, pts in grade_scale %}
-                        <option value="{{ val }}" {% if form_data.chemistry == val %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-                <div class="help-text" id="help-chemistry">Pharmacy, Medicine &amp; Chemical Sciences.</div>
-            </div>
-
-            <!-- Tech / Business Slot -->
-            <div id="slot-tech_bus">
-                <label id="lbl-tech_bus" for="tech_bus">Technical / Business / Applied Elective</label>
-                <select id="tech_bus" name="tech_bus">
-                    <option value="NOT TAKEN" {% if not form_data.tech_bus or form_data.tech_bus == 'NOT TAKEN' %}selected{% endif %}>Not Taken (0 points)</option>
-                    {% for val, label, pts in grade_scale %}
-                        <option value="{{ val }}" {% if form_data.tech_bus == val %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-                <div class="help-text" id="help-tech_bus">Computing, Economics, Entrepreneurship, Accounting.</div>
-            </div>
-
             <!-- INTEREST STATEMENT -->
             <div class="section-header">
                 <span>Personal Aspirations &amp; Career Interests</span>
@@ -547,117 +439,142 @@
 </div>
 
 <script>
-    // Embedded registry from server
+    // ============================================================
+    // EDUCATION DATA — embedded from server (all curricula & unis)
+    // ============================================================
     const EDUCATION_DATA = {
         curricula: {{ (curricula or {}) | tojson }},
         universities: {{ (universities or {}) | tojson }},
         countryOptions: {{ (country_options or []) | tojson }}
     };
-
-    // Stored form values from server rendering
     const SAVED_FORM = {{ form_data | tojson }};
 
-    function onCountryChange(countryId) {
-        const option = EDUCATION_DATA.countryOptions.find(c => c.id === countryId);
-        if (option) {
-            const curSelect = document.getElementById('curriculum');
-            const uniSelect = document.getElementById('target_uni');
-
-            if (curSelect) {
-                curSelect.value = option.default_curriculum;
-                onCurriculumChange(option.default_curriculum);
-            }
-            if (uniSelect) {
-                uniSelect.value = option.default_uni;
-            }
+    // ============================================================
+    // GRADE OPTIONS BUILDER
+    // ============================================================
+    function buildGradeOptions(gradeScale, isElective, selectedValue) {
+        let html = '';
+        if (isElective) {
+            const sel = (!selectedValue || selectedValue === 'NOT TAKEN') ? ' selected' : '';
+            html += `<option value="NOT TAKEN"${sel}>Not Taken (0 points)</option>`;
+        } else {
+            const sel = !selectedValue ? ' selected' : '';
+            html += `<option value="" disabled${sel}>-- Select Grade --</option>`;
         }
+        for (const [code, display] of gradeScale) {
+            const sel = selectedValue && selectedValue.toUpperCase() === code.toUpperCase() ? ' selected' : '';
+            html += `<option value="${code}"${sel}>${display}</option>`;
+        }
+        return html;
     }
 
+    // ============================================================
+    // DYNAMIC SUBJECT SECTION RENDERER
+    // Called whenever curriculum changes
+    // ============================================================
     function onCurriculumChange(curriculumId) {
         const curr = EDUCATION_DATA.curricula[curriculumId] || EDUCATION_DATA.curricula['ke_kcse'];
-        if (!curr) return;
+        if (!curr || !curr.sections) return;
 
-        // Update Compulsory Subjects
-        curr.subjects.compulsory.forEach(sub => {
-            const lbl = document.getElementById('lbl-' + sub.id);
-            const help = document.getElementById('help-' + sub.id);
-            const sel = document.getElementById(sub.id);
+        const container = document.getElementById('subjects-container');
+        if (!container) return;
 
-            if (lbl) lbl.textContent = sub.name + (sub.code ? ' (' + sub.code + ') *' : ' *');
-            if (help) help.textContent = sub.desc || '';
-            if (sel) {
-                const currentVal = sel.value || (SAVED_FORM && SAVED_FORM[sub.id]) || '';
-                populateGradeOptions(sel, curr.grade_scale, false, currentVal);
-            }
+        let html = '';
+
+        curr.sections.forEach(section => {
+            // Section header
+            html += `
+            <div class="section-header" style="grid-column:1/-1;">
+                <span>${section.title}</span>
+                <span style="font-size:0.78em;font-weight:normal;opacity:0.9;">${section.subtitle || ''}</span>
+            </div>`;
+
+            section.subjects.forEach(sub => {
+                const isElective = !sub.required;
+                const savedGrade  = SAVED_FORM && SAVED_FORM[sub.id] ? SAVED_FORM[sub.id] : (isElective ? 'NOT TAKEN' : '');
+                const reqMark     = sub.required ? ' *' : '';
+                const isCustom    = sub.type === 'custom_select';
+                const savedName   = SAVED_FORM && SAVED_FORM[sub.id + '_name'] ? SAVED_FORM[sub.id + '_name'] : (sub.default_subject || '');
+
+                html += `<div id="slot-${sub.id}">`;
+
+                if (isCustom) {
+                    // Two-part field: subject name selector + grade selector
+                    html += `<label>${sub.name}${reqMark}</label>`;
+                    html += `<div style="display:flex;gap:8px;flex-wrap:wrap;">`;
+                    // Subject name select
+                    html += `<select name="${sub.id}_name" style="flex:2;min-width:140px;">`;
+                    for (const opt of (sub.options || [])) {
+                        const sel = savedName === opt ? ' selected' : '';
+                        html += `<option value="${opt}"${sel}>${opt}</option>`;
+                    }
+                    html += `</select>`;
+                    // Grade select
+                    html += `<select name="${sub.id}" id="${sub.id}" style="flex:1;min-width:110px;" ${sub.required ? 'required' : ''}>`;
+                    html += buildGradeOptions(curr.grade_scale, isElective, savedGrade);
+                    html += `</select>`;
+                    html += `</div>`;
+                } else {
+                    // Fixed-name subject: label + grade select
+                    html += `<label for="${sub.id}">${sub.name}${reqMark}</label>`;
+                    html += `<select name="${sub.id}" id="${sub.id}" ${sub.required ? 'required' : ''}>`;
+                    html += buildGradeOptions(curr.grade_scale, isElective, savedGrade);
+                    html += `</select>`;
+                }
+
+                // Help text
+                if (sub.desc) {
+                    html += `<div class="help-text">${sub.desc}</div>`;
+                }
+
+                html += `</div>`;
+            });
         });
 
-        // Update Elective Subjects
-        curr.subjects.electives.forEach(sub => {
-            const lbl = document.getElementById('lbl-' + sub.id);
-            const help = document.getElementById('help-' + sub.id);
-            const sel = document.getElementById(sub.id);
-
-            if (lbl) lbl.textContent = sub.name + (sub.code ? ' (' + sub.code + ')' : '');
-            if (help) help.textContent = sub.desc || '';
-            if (sel) {
-                const currentVal = sel.value || (SAVED_FORM && SAVED_FORM[sub.id]) || 'NOT TAKEN';
-                populateGradeOptions(sel, curr.grade_scale, true, currentVal);
-            }
-        });
+        container.innerHTML = html;
     }
 
-    function populateGradeOptions(selectElement, gradeScale, isElective, selectedValue) {
-        const previousVal = selectedValue || selectElement.value;
-        selectElement.innerHTML = '';
+    // ============================================================
+    // COUNTRY CHANGE → auto-select curriculum & default university
+    // ============================================================
+    function onCountryChange(countryId) {
+        const option = EDUCATION_DATA.countryOptions.find(c => c.id === countryId);
+        if (!option) return;
 
-        if (isElective) {
-            const notTakenOpt = document.createElement('option');
-            notTakenOpt.value = 'NOT TAKEN';
-            notTakenOpt.textContent = 'Not Taken (0 points)';
-            if (!previousVal || previousVal === 'NOT TAKEN') notTakenOpt.selected = true;
-            selectElement.appendChild(notTakenOpt);
-        } else {
-            const placeholderOpt = document.createElement('option');
-            placeholderOpt.value = '';
-            placeholderOpt.disabled = true;
-            placeholderOpt.textContent = '-- Select Grade --';
-            if (!previousVal) placeholderOpt.selected = true;
-            selectElement.appendChild(placeholderOpt);
+        const curSelect = document.getElementById('curriculum');
+        const uniSelect = document.getElementById('target_uni');
+
+        if (curSelect) {
+            curSelect.value = option.default_curriculum;
+            onCurriculumChange(option.default_curriculum);
         }
-
-        let foundMatch = false;
-        gradeScale.forEach(([code, display, pts]) => {
-            const opt = document.createElement('option');
-            opt.value = code;
-            opt.textContent = display;
-            if (previousVal && (previousVal.toUpperCase() === code.toUpperCase())) {
-                opt.selected = true;
-                foundMatch = true;
-            }
-            selectElement.appendChild(opt);
-        });
-
-        // Fallback: if not matched and compulsory, select top grade or leave placeholder
-        if (!foundMatch && previousVal && !isElective) {
-            selectElement.value = previousVal;
+        if (uniSelect) {
+            uniSelect.value = option.default_uni;
         }
     }
 
+    // ============================================================
+    // INTEREST TEXT HELPERS
+    // ============================================================
     function setInterest(text) {
-        const textarea = document.getElementById('interest');
-        textarea.value = text;
-        textarea.focus();
+        const ta = document.getElementById('interest');
+        if (ta) { ta.value = text; ta.focus(); }
     }
 
     function scrollToForm() {
         const form = document.getElementById('analysis-form');
-        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        document.getElementById('interest').focus();
+        if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const ta = document.getElementById('interest');
+        if (ta) ta.focus();
     }
 
-    // Safe initialization that works regardless of DOM timing
+    // ============================================================
+    // INIT
+    // ============================================================
     function initAdvisor() {
-        const initialCurriculum = (SAVED_FORM && SAVED_FORM.curriculum) || (document.getElementById('curriculum') && document.getElementById('curriculum').value) || 'ke_kcse';
+        const initialCurriculum = (SAVED_FORM && SAVED_FORM.curriculum)
+            || (document.getElementById('curriculum') && document.getElementById('curriculum').value)
+            || 'ke_kcse';
         onCurriculumChange(initialCurriculum);
 
         const resultsEl = document.getElementById('results');

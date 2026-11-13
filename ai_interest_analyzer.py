@@ -183,7 +183,8 @@ def analyze_interest_with_gemini(
     username: str = "Student",
     target_uni: str = "usiu",
     country: str = "Kenya",
-    curriculum_name: str = "KCSE"
+    curriculum_name: str = "KCSE",
+    raw_subjects: List[str] = None
 ) -> Tuple[str | None, float, List[str], str, str, str]:
     """
     Use Gemini AI to analyze student interests, academic strengths,
@@ -204,7 +205,9 @@ def analyze_interest_with_gemini(
         client = genai.Client(api_key=api_key)
 
         grade_context = ""
-        if scores:
+        if raw_subjects:
+            grade_context = f"\nCandidate Secondary School Record ({curriculum_name}, {country}):\n" + "\n".join(f"- {s}" for s in raw_subjects)
+        elif scores:
             grade_lines = [f"{k.capitalize()}: {v} points (0-12 scale)" for k, v in scores.items() if v > 0]
             grade_context = f"\nStudent High School Academic Profile ({curriculum_name}, {country}): {', '.join(grade_lines)}"
 
@@ -401,7 +404,8 @@ def analyze_interest_text_advanced(
     username: str = "Student",
     target_uni: str = "usiu",
     country: str = "Kenya",
-    curriculum_id: str = "ke_kcse"
+    curriculum_id: str = "ke_kcse",
+    raw_subjects: List[str] = None
 ) -> Tuple[str, float, List[str], str, str, str]:
     """
     Main entry point for AI analysis.
@@ -420,7 +424,8 @@ def analyze_interest_text_advanced(
         username=username,
         target_uni=target_uni,
         country=country,
-        curriculum_name=curriculum_name
+        curriculum_name=curriculum_name,
+        raw_subjects=raw_subjects
     )
     if cat and major:
         conf, note = adjust_confidence_for_interaction(conf, interaction_score, cat)

@@ -50,7 +50,7 @@ from recommendations import (
 )
 from education_systems import (
     UNIVERSITIES, CURRICULA, parse_curriculum_grade,
-    get_country_options, get_curricula_for_country
+    get_country_options, extract_candidate_profile
 )
 from ai_interest_analyzer import analyze_interest_text_advanced, get_major_recommendation
 from model_training import save_recommendation_data, get_recommendation_statistics
@@ -82,9 +82,9 @@ app.config['SECRET_KEY'] = _secret
 app.config['SESSION_COOKIE_SECURE']   = not DEBUG   # HTTPS-only in production
 app.config['SESSION_COOKIE_HTTPONLY'] = True         # No JS access to session cookie
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'       # CSRF mitigation
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)  # 30-minute inactivity timeout
-app.config['SESSION_REFRESH_EACH_REQUEST'] = True                 # Rolling session: resets timer on activity
-app.config['WTF_CSRF_TIME_LIMIT'] = 1800                          # CSRF token aligns with session (30 min)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)   # 7-day rolling session
+app.config['SESSION_REFRESH_EACH_REQUEST'] = True               # Rolling: timer resets on every activity
+app.config['WTF_CSRF_TIME_LIMIT'] = 86400 * 7                  # CSRF token valid 7 days
 
 # ============================================================
 # DATABASE
@@ -147,7 +147,7 @@ login_manager = LoginManager(app)
 login_manager.login_view    = 'login'
 login_manager.login_message = "Your session has timed out or you are not logged in. Please log in to continue."
 login_manager.login_message_category = "info"
-login_manager.session_protection = 'strong'  # Anti-session hijacking (tracks IP and User-Agent)
+login_manager.session_protection = 'basic'   # 'strong' rejects Vercel proxy IP changes — use 'basic'
 
 # Rate limiter — uses client IP address
 limiter = Limiter(
@@ -347,23 +347,21 @@ def predict():
         curr_data = CURRICULA[curriculum]
         uni_data = UNIVERSITIES[target_uni]
 
-        # ===== 2. PARSE & VALIDATE GRADE INPUTS =====
-        math_pt  = parse_curriculum_grade(curriculum, request.form.get('math',       '').strip())
-        eng_pt   = parse_curriculum_grade(curriculum, request.form.get('english',    '').strip())
-        kisw_pt  = parse_curriculum_grade(curriculum, request.form.get('kiswahili',  '').strip())
-        bio_pt   = parse_curriculum_grade(curriculum, request.form.get('biology',    '').strip())
-        phy_pt   = parse_curriculum_grade(curriculum, request.form.get('physics',    '').strip())
-        chem_pt  = parse_curriculum_grade(curriculum, request.form.get('chemistry',  '').strip())
-        hum_pt   = parse_curriculum_grade(curriculum, request.form.get('humanities', '').strip())
-        tech_pt  = parse_curriculum_grade(curriculum, request.form.get('tech_bus',   '').strip())
+        # ===== 2. EXTRACT CANDIDATE PROFILE (dynamic — works for ALL curricula) =====
+        scores, input_summary, raw_subject_lines = extract_candidate_profile(curriculum, request.form)
 
-        # Compulsory subject check
+        math_pt  = scores.get('math',    0)
+        eng_pt   = scores.get('english', 0)
+        bio_pt   = scores.get('biology', 0)
+        phy_pt   = scores.get('physics', 0)
+        chem_pt  = scores.get('chemistry', 0)
+        hum_pt   = scores.get('humanities', 0)
+        tech_pt  = scores.get('tech_business', 0)
+        kisw_pt  = scores.get('kiswahili', 0)
+
+        # Compulsory subject check: Math and English/core language are always required
         if math_pt == 0 or eng_pt == 0:
             flash('❌ Mathematics and English / Core Language are COMPULSORY for university admission. Please select your grades.', 'danger')
-            return redirect(url_for('index'))
-
-        if hum_pt == 0:
-            flash('❌ Please select a valid grade for your Humanities / Social Science subject.', 'danger')
             return redirect(url_for('index'))
 
         # ===== 3. SANITIZE INTEREST TEXT =====
@@ -393,7 +391,8 @@ def predict():
                 username=current_user.username,
                 target_uni=target_uni,
                 country=country,
-                curriculum_id=curriculum
+                curriculum_id=curriculum,
+                raw_subjects=raw_subject_lines
             )
 
         category_to_code = {
@@ -462,23 +461,10 @@ def predict():
         }
         save_recommendation_data(student_data)
 
-        # ===== 9. PREPARE DISPLAY DATA =====
-        comp_labels = {s['id']: s['name'] for s in curr_data['subjects']['compulsory']}
-        elec_labels = {s['id']: s['name'] for s in curr_data['subjects']['electives']}
-
-        input_summary = {
-            comp_labels.get('math', 'Math'):         f"{request.form.get('math', 'N/A')} ({math_pt}pts)",
-            comp_labels.get('english', 'English'):   f"{request.form.get('english', 'N/A')} ({eng_pt}pts)",
-            comp_labels.get('kiswahili', 'Second Lang / Core'): f"{request.form.get('kiswahili', 'N/A')} ({kisw_pt}pts)" if kisw_pt > 0 else "Not Taken",
-            comp_labels.get('humanities', 'Humanities'): f"{request.form.get('humanities', 'N/A')} ({hum_pt}pts)",
-            elec_labels.get('biology', 'Biology'):   f"{request.form.get('biology', 'N/A')} ({bio_pt}pts)"   if bio_pt  > 0 else "Not Taken",
-            elec_labels.get('physics', 'Physics'):   f"{request.form.get('physics', 'N/A')} ({phy_pt}pts)"   if phy_pt  > 0 else "Not Taken",
-            elec_labels.get('chemistry', 'Chemistry'): f"{request.form.get('chemistry', 'N/A')} ({chem_pt}pts)" if chem_pt > 0 else "Not Taken",
-            elec_labels.get('tech_bus', 'Technical / Business'): f"{request.form.get('tech_bus', 'N/A')} ({tech_pt}pts)" if tech_pt > 0 else "Not Taken",
-            'Target University': uni_data['name'],
-            'Education System': curr_data['name'],
-            'Your Interests': f'"{interest_text[:60]}..."' if len(interest_text) > 60 else f'"{interest_text}"',
-        }
+        # ===== 9. PREPARE DISPLAY DATA (input_summary from extract_candidate_profile) =====
+        input_summary['Target University'] = uni_data['name']
+        input_summary['Education System']  = curr_data['name']
+        input_summary['Your Interests']    = f'"{interest_text[:60]}..."' if len(interest_text) > 60 else f'"{interest_text}"'
 
         return render_template(
             'index.html',
@@ -496,14 +482,6 @@ def predict():
                 'country': country,
                 'curriculum': curriculum,
                 'target_uni': target_uni,
-                'math': request.form.get('math', ''),
-                'english': request.form.get('english', ''),
-                'kiswahili': request.form.get('kiswahili', ''),
-                'biology': request.form.get('biology', ''),
-                'physics': request.form.get('physics', ''),
-                'chemistry': request.form.get('chemistry', ''),
-                'humanities': request.form.get('humanities', ''),
-                'tech_bus': request.form.get('tech_bus', ''),
                 'interest': interest_text,
             }
         )
