@@ -1,9 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Delete Account - USIU AI Advisor</title>
+{% extends "base.html" %}
+
+{% block title %}Delete Account - USIU AI Advisor{% endblock %}
+
+{% block head %}
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
         .auth-box { background: white; width: 100%; max-width: 500px; padding: 40px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); text-align: center; }
@@ -25,9 +24,9 @@
         .success { background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
         .link { display: block; margin-top: 20px; color: #8B0000; text-decoration: none; }
     </style>
-</head>
-<body>
+{% endblock %}
 
+{% block body %}
 <div class="auth-box">
     <h1>⚠️ Delete Account</h1>
     <p>Are you sure you want to delete your account?</p>
@@ -62,6 +61,4 @@
 
     <a href="{{ url_for('index') }}" class="link">← Back to Dashboard</a>
 </div>
-
-</body>
-</html>
+{% endblock %}

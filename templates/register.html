@@ -1,9 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - USIU AI Advisor</title>
+{% extends "base.html" %}
+
+{% block title %}Register - USIU AI Advisor{% endblock %}
+
+{% block head %}
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
         .auth-box { background: white; width: 100%; max-width: 440px; padding: 40px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); text-align: center; }
@@ -24,9 +23,9 @@
             .auth-box { padding: 25px; margin: 15px; }
         }
     </style>
-</head>
-<body>
+{% endblock %}
 
+{% block body %}
 <div class="auth-box">
     <h1>Student Registration</h1>
     <p>Create an account to use the AI Advisor</p>
@@ -52,6 +51,4 @@
 
     <a href="{{ url_for('login') }}" class="link">Already have an account? Login</a>
 </div>
-
-</body>
-</html>
+{% endblock %}
