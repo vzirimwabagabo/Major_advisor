@@ -174,6 +174,11 @@ if not DEBUG:
                 'style-src':   "'self' 'unsafe-inline'",
                 'img-src':     "'self' data:",
                 'font-src':    "'self'",
+            },
+            permissions_policy={
+                'geolocation': '()',
+                'camera': '()',
+                'microphone': '()',
             }
         )
     except ImportError:
